@@ -1,0 +1,15 @@
+@use '../../variables/variables' as *;
+
+/******************************************************************
+* viewport-unit-set
+* jsから渡される--viewport-unitのフォールバック
+* スクロールバー除外幅の1%（JSで実測値に更新。JS無効時は100vw - --scrollbar-widthから算出）
+* 参照時は get-viewport-unit() を使用する
+* @example
+*   @include viewport-unit-set;
+*******************************************************************/
+@mixin viewport-unit-set {
+  :root {
+    --viewport-unit: calc((100vw - var(--scrollbar-width)) / 100);
+  }
+}

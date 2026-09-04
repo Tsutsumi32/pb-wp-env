@@ -1,0 +1,17 @@
+// スクロールバー幅(想定値)
+// JS無効時・未設定時のフォールバック。JS有効時は--scrollbar-widthが実測値で上書きされる
+$width-scrollbar: 20;
+
+/******************************************************************
+* scrollbar-width-set
+* jsから渡される--scrollbar-widthのフォールバック
+* スクロールバー幅（JSで実測値に更新。JS無効時は$width-scrollbarがフォールバック）
+* 参照時は get-scrollbar-width() を使用する
+* @example
+*   @include scrollbar-width-set;
+*******************************************************************/
+@mixin scrollbar-width-set {
+  :root {
+    --scrollbar-width: #{$width-scrollbar}px;
+  }
+}

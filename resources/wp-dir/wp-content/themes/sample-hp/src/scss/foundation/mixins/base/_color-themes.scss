@@ -1,0 +1,88 @@
+@use 'sass:map';
+@use '../../variables/variables' as *;
+
+/******************************************************************
+* define-color-vars CSS変数を一括定義する mixin
+* @param $mode モード名（default | dark など）
+* ネスト map をフラットな CSS変数に変換する
+* 例) @include define-color-vars('default');
+*     → --color-text-primary: #2B2D31;
+*     → --color-bg-base: #FFFFFF;
+*******************************************************************/
+@mixin define-color-vars($_mode) {
+  $_mode-map: map.get($colors, $_mode);
+
+  @if $_mode-map == null {
+    @error "Unknown color mode: #{$_mode}";
+  }
+
+  @each $_group, $_group-map in $_mode-map {
+    @each $_name, $_value in $_group-map {
+      --color-#{"" + $_group}-#{"" + $_name}: #{$_value};
+    }
+  }
+}
+
+/******************************************************************
+* generate-color-themes テーマ全体を生成する mixin
+* defaultモードを:rootに、それ以外のモードを[data-theme="モード名"]に出力する
+* $colorsマップにモードを追加するだけで、自動的にすべてのテーマが生成される
+* 例) @include generate-color-themes;
+*     → :root { --color-text-primary: ...; }
+*     → [data-theme="dark"] { --color-text-primary: ...; }
+*******************************************************************/
+@mixin generate-color-themes {
+  // default が存在するかチェック
+  @if not map.has-key($colors, 'default') {
+    @error "$colors must have a 'default' mode.";
+  }
+
+  // :root（default）
+  :root {
+    @include define-color-vars('default');
+  }
+
+  // その他のモード
+  @each $_mode, $_ in $colors {
+    @if $_mode != 'default' {
+      [data-theme='#{$_mode}'] {
+        @include define-color-vars($_mode);
+      }
+    }
+  }
+}
+
+/******************************************************************
+* mode テーマモード別のスタイルを定義する mixin
+* @param $mode モード名（'default' | 'dark' など）
+* defaultモードの場合は親セレクタそのまま、それ以外は[data-theme="モード名"]で出力
+*
+* 使用例:
+* .my-element {
+*   color: red;
+*
+*   @include mode('dark') {
+*     color: white;
+*   }
+* }
+*
+* 出力結果:
+* .my-element {
+*   color: red;
+* }
+*
+* [data-theme="dark"] .my-element {
+*   color: white;
+* }
+*******************************************************************/
+@mixin mode($_mode) {
+  @if $_mode == 'default' {
+    // defaultモードは親セレクタそのまま（通常は:rootで既に定義済み）
+    @content;
+  } @else {
+    // その他のモードは[data-theme="モード名"]で出力
+    [data-theme='#{$_mode}'] & {
+      @content;
+    }
+  }
+}

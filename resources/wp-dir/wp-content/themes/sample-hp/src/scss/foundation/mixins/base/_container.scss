@@ -1,0 +1,83 @@
+@use 'sass:map';
+@use 'sass:meta';
+@use 'sass:math';
+@use '../../variables/variables' as *;
+@use '../../functions/style-settings' as *;
+@use '../judgement/media' as *;
+
+/******************************************************************
+* container　コンテナの余白と最大幅を設定する
+* @param $_type コンテナの種類（_variables.scssの$container-sizesで定義）
+* $media-query-strategy で 'sp-first' または 'pc-first' を切り替え可能
+*   - 'sp-first': SPをデフォルト、大きい画面で上書き
+*   - 'pc-first': PCをデフォルト、小さい画面で上書き
+*
+* $container-sizesのキー名は$breakpointsのキー名と統一されています
+*******************************************************************/
+@mixin container($_type: 'normal') {
+  width: 100%;
+
+  // $container-sizesから指定されたタイプのサイズを取得
+  @if not map.has-key($container-sizes, $_type) {
+    @error "container(): 指定されたタイプ '#{$_type}' は $container-sizes に定義されていません。";
+  }
+
+  $_sizes: map.get($container-sizes, $_type);
+
+  // デフォルト値を取得（メディアクエリを使用しない時の値）
+  $_default: map.get($_sizes, 'default');
+  @if $_default == null {
+    @error "container(): '#{$_type}' に 'default' が定義されていません。";
+  }
+  $_default-padding: map.get($_default, 'padding');
+  $_default-max-width: map.get($_default, 'max-width');
+
+  margin-inline: auto;
+
+  // デフォルト値を設定（メディアクエリなし）
+  // padding-inline: 単位なし数値の場合はs()を使用、単位付きの場合はそのまま使用
+  @if meta.type-of($_default-padding) == 'number' and math.is-unitless($_default-padding) {
+    padding-inline: s($_default-padding);
+  } @else {
+    padding-inline: $_default-padding;
+  }
+  @if $_default-max-width != null {
+    // max-width: 数値の場合はs()を使用、単位付きの場合はそのまま使用
+    @if meta.type-of($_default-max-width) == 'number' {
+      max-width: s($_default-max-width);
+    } @else {
+      max-width: $_default-max-width;
+    }
+  }
+
+  // 上書き順は $container-sizes の定義順を採用する
+  // （sp-first / pc-first の差分は media() 側で吸収）
+  @each $_breakpoint-key, $_breakpoint-config in $_sizes {
+    @if $_breakpoint-key != 'default' and $_breakpoint-config != null {
+      $_breakpoint-padding: map.get($_breakpoint-config, 'padding');
+      $_breakpoint-max-width: map.get($_breakpoint-config, 'max-width');
+
+      @include media($_breakpoint-key) {
+        @if $_breakpoint-padding != null {
+          // padding-inline: 単位なし数値の場合はs()を使用、単位付きの場合はそのまま使用
+          @if meta.type-of($_breakpoint-padding) ==
+            'number' and
+            math.is-unitless($_breakpoint-padding)
+          {
+            padding-inline: s($_breakpoint-padding);
+          } @else {
+            padding-inline: $_breakpoint-padding;
+          }
+        }
+        @if $_breakpoint-max-width != null {
+          // max-width: 数値の場合はs()を使用、単位付きの場合はそのまま使用
+          @if meta.type-of($_breakpoint-max-width) == 'number' {
+            max-width: s($_breakpoint-max-width);
+          } @else {
+            max-width: $_breakpoint-max-width;
+          }
+        }
+      }
+    }
+  }
+}

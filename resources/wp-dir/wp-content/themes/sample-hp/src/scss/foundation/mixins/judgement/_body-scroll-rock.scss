@@ -1,0 +1,13 @@
+/******************************************************************
+* body-scroll-rock
+* bodyのスクロール固定時にbodyにつくクラス。
+* 本mixinを使用することで、ロック時のスタイルを定義できる
+* bodyScrollControll.jsによるクラス付与
+* var(--scrollbar-width)で、スクロールバー分の幅をjsから受け取る
+* 例: @include body-scroll-rock { .header { ... } }
+*******************************************************************/
+@mixin body-scroll-rock {
+  @at-root body.is-scroll-locked {
+    @content;
+  }
+}

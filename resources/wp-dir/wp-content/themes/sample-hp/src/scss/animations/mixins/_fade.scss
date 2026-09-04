@@ -1,0 +1,34 @@
+/******************************************************************
+ * フェードアニメーション（汎用）
+ * モーダル等、表示切替で使う。JS は is_xxx クラスを付けるだけ。CSS でアニメーションを適用する。
+ ******************************************************************/
+
+/**
+ * フェード用の transition を指定する mixin
+ * @param {number|string} $duration - アニメーション時間（例: 400ms, 0.4s）
+ * @param {string} $ease - イージング（例: ease, ease-out）
+ */
+@mixin anim-fade-transition($duration: 400ms, $ease: ease) {
+  transition:
+    opacity $duration $ease,
+    visibility $duration $ease;
+}
+
+/**
+ * フェードイン用の初期状態（非表示）
+ * transition と併用する。is_xxx 付与で opacity: 1; visibility: visible; をブロック側で指定する
+ */
+@mixin anim-fade-initial($duration: 400ms, $ease: ease) {
+  @include anim-fade-transition($duration, $ease);
+  opacity: 0;
+  visibility: hidden;
+}
+
+/**
+ * フェード表示状態（is_xxx 付与時用）
+ * ブロックの .is_active 等で @include fade-visible する
+ */
+@mixin anim-fade-visible() {
+  opacity: 1;
+  visibility: visible;
+}

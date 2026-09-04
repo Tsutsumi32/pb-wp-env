@@ -1,0 +1,75 @@
+@use '../../foundation/' as *;
+
+/******************************************************************
+* block - bred（パンくずリスト）
+*******************************************************************/
+.bl_breadCrumbsWrap {
+  margin-top: s(40);
+  width: 100%;
+  margin-left: auto;
+  border-bottom: s(1) solid get-color('text', 'base');
+  display: flex;
+  justify-content: flex-end;
+  padding-left: s(100);
+
+  @include media(get-breakpoint-key('sp')) {
+    margin-top: s(24);
+    padding-left: s(40);
+  }
+}
+
+.bl_breadCrumbs {
+  $_this: &;
+
+  width: 100%;
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  padding-bottom: s(4);
+  text-transform: uppercase;
+  gap: s(10);
+
+  &_list {
+    display: flex;
+    align-items: center;
+    gap: s(10);
+    flex-shrink: 0;
+
+    &:last-child {
+      flex-shrink: 1;
+      min-width: 0;
+    }
+
+    &:not(:last-child)::after {
+      content: ' - ';
+      line-height: 1;
+      position: relative;
+      top: s(-2);
+      flex-shrink: 0;
+    }
+  }
+
+  &_item {
+    @include font(18, 21, 0, 400);
+    color: get-color('text', 'base');
+    text-decoration: none;
+    transition: opacity get-transition('normal');
+    min-width: 0;
+
+    @include media(get-breakpoint-key('sp')) {
+      font-size: s(11);
+    }
+
+    @include hover {
+      opacity: 0.7;
+    }
+  }
+
+  [data-bread-crumbs-item-text] {
+    @include omission(1, s(18), calc(21 / 18));
+
+    @include media(get-breakpoint-key('sp')) {
+      @include omission(1, s(11), calc(21 / 18));
+    }
+  }
+}

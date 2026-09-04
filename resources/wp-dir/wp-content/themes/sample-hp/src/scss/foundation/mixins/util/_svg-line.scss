@@ -1,0 +1,14 @@
+/******************************************************************
+* svg-line　svg画像を使用して下線を引く
+　※画像は下線の1線部分を画像化する
+* @param $_filename 使用する画像名
+* @param $_width 画像の幅　単位あり
+* @param $_height 画像の高さ 単位あり
+* @param $_gap 間隔　単位あり
+*******************************************************************/
+@mixin svg-line($_filename, $_width, $_height, $_gap) {
+  background-image: url(#{get-image-path(svg)}#{$_filename}.svg);
+  background-repeat: repeat-x;
+  background-position: bottom;
+  background-size: calc($_width + $_gap) $_height;
+}

@@ -1,0 +1,35 @@
+@use '../../foundation/' as *;
+@use '../mixins/fade' as *;
+
+/******************************************************************
+ * タブコンテンツの表示・非表示（フェード）
+ * - tab.js の is_active と連動
+ * - has_tab_contents でパネルを同一セルに重ね、has_tabContent でクロスフェード
+ ******************************************************************/
+.has_tab {
+  $_this: &;
+
+  &_contents {
+    display: grid;
+  }
+}
+
+.has_tabContent {
+  grid-area: 1 / 1;
+  @include anim-fade-initial(0.8s, ease);
+  pointer-events: none;
+
+  &.is_active {
+    @include anim-fade-visible();
+    pointer-events: auto;
+    z-index: 1;
+  }
+
+  &:not(.is_active) {
+    height: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}

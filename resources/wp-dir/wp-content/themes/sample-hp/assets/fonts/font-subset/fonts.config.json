@@ -1,0 +1,19 @@
+{
+  "fonts": [
+    {
+      "name": "NotoSansJP-Regular",
+      "input": "htdocs/assets/fonts/ttf/NotoSansJP-Regular.ttf",
+      "output": "htdocs/assets/fonts/NotoSansJP-Regular.woff2"
+    },
+    {
+      "name": "NotoSansJP-Medium",
+      "input": "htdocs/assets/fonts/ttf/NotoSansJP-Medium.ttf",
+      "output": "htdocs/assets/fonts/NotoSansJP-Medium.woff2"
+    },
+    {
+      "name": "NotoSansJP-Bold",
+      "input": "htdocs/assets/fonts/ttf/NotoSansJP-Bold.ttf",
+      "output": "htdocs/assets/fonts/NotoSansJP-Bold.woff2"
+    }
+  ]
+}

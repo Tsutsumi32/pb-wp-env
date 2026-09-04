@@ -1,0 +1,11 @@
+@use './strip-unit' as *;
+/******************************************************************
+* height-string　行の高さを取得する
+* @param $_line 行数
+* @param $_font-size フォントサイズ (単位あり)
+* @param $_line-height 行間
+* 例) 3行 サイズ16px 行間1.5 (3, 16px, 1.5);
+*******************************************************************/
+@function height-string($_line, $_font-size, $_line-height) {
+  @return calc($_font-size * $_line-height * $_line);
+}

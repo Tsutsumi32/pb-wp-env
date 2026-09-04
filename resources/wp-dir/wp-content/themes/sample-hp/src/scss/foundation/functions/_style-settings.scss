@@ -1,0 +1,118 @@
+@use 'sass:meta';
+@use 'sass:list';
+@use 'sass:math';
+@use 'sass:string';
+@use '../variables/variables' as *;
+@use './strip-unit' as *;
+
+@function _aspect-ratio-threshold-value($_aspect-ratio) {
+  @if meta.type-of($_aspect-ratio) == 'list' {
+    @return math.div(
+      strip-unit(list.nth($_aspect-ratio, 1)),
+      strip-unit(list.nth($_aspect-ratio, 2))
+    );
+  }
+
+  @return strip-unit($_aspect-ratio);
+}
+
+@function _scale-limits($_core, $_min, $_max) {
+  $_is-css-string: meta.type-of($_core) == 'string';
+
+  @if $_min != null and $_max != null {
+    $_lower: $_min;
+    $_upper: $_max;
+
+    @if $_lower > $_upper {
+      $_lower: $_max;
+      $_upper: $_min;
+    }
+
+    @if $_is-css-string {
+      @return string.unquote('clamp(#{$_lower}, #{$_core}, #{$_upper})');
+    }
+
+    @return clamp($_lower, $_core, $_upper);
+  }
+
+  @if $_min != null {
+    @if $_is-css-string {
+      @return string.unquote('max(#{$_min}, #{$_core})');
+    }
+
+    @return max($_min, $_core);
+  }
+
+  @if $_max != null {
+    @if $_is-css-string {
+      @return string.unquote('min(#{$_max}, #{$_core})');
+    }
+
+    @return min($_max, $_core);
+  }
+
+  @return $_core;
+}
+
+@function _sh-lvh-core($_s-core, $_aspect-ratio: null) {
+  @if $_aspect-ratio != null {
+    $_threshold: _aspect-ratio-threshold-value($_aspect-ratio);
+
+    @return string.unquote('calc(#{$_s-core} * #{$_threshold} * var(--lvh-vw-ratio))');
+  }
+
+  @return string.unquote('calc(#{$_s-core} * var(--aspect-ratio-threshold) * var(--lvh-vw-ratio))');
+}
+
+/******************************************************************
+* s　リキッド対応の値変換（s()の仕様も統合）
+* CSS変数(--liq-unit)を使用して、各ブレイクポイントで自動的に計算が変更される
+* $style-settingsの設定に基づいて、以下の4つのタイプに対応:
+*   - type="liquid" => リキッド（vw）
+*   - type="responsive" => レスポンシブ（rem、s()の仕様を統合）
+*   - type="fixed" => 前時点のリキッドでの固定化
+*   - type="none" => 変更しない（前の値を継承）
+* @param $_number 数値（デザイン上のスケール値）
+* @param $_min 省略可。算出値の下限（単位付き推奨。例: 9px）
+* @param $_max 省略可。算出値の上限（単位付き推奨）
+*  例) padding: s(30);
+*  例) font-size: s(10, 9px, 24px); → clamp(9px, calc(...), 24px)
+*******************************************************************/
+@function s($_number, $_min: null, $_max: null) {
+  $_core: calc(strip-unit($_number) * var(--liq-unit));
+
+  @return _scale-limits($_core, $_min, $_max);
+}
+
+/******************************************************************
+* sh　画面高さ(lvh)を考慮したリキッド対応の値変換
+* s() と同じ --liq-unit を基準とし、横長端末では比率に基づく lvh 換算で縮小する
+*
+* 算出:
+*   min(
+*     s() の値,
+*     s() の値 × aspect-ratio × var(--lvh-vw-ratio)
+*   )
+*
+* 横長 (100vw / 100lvh > aspect-ratio) のとき lvh 側が小さくなり縮小する。
+* 縦長のとき lvh 側は s() 以上になるため、s() が上限として維持される。
+* calc() 内に clamp をネストしない（ブラウザが不正値と判定するため）。
+*
+* @param $_number 数値（デザイン上のスケール値）
+* @param $_min 省略可。s() と同様
+* @param $_max 省略可。s() と同様
+* @param $_aspect-ratio 省略可。比率基準（幅/高さ）
+*   - 数値: 375 / 667 の結果（例: 0.562）
+*   - リスト: (375, 667)
+*   省略時は CSS 変数 --aspect-ratio-threshold を使用
+*  例) height: sh(600);
+*  例) gap: sh(40, null, null, (16, 9));
+*******************************************************************/
+@function sh($_number, $_min: null, $_max: null, $_aspect-ratio: null) {
+  $_n: strip-unit($_number);
+  $_s-core: calc(#{$_n} * var(--liq-unit));
+  $_lvh-core: _sh-lvh-core($_s-core, $_aspect-ratio);
+  $_core: string.unquote('min(#{$_s-core}, #{$_lvh-core})');
+
+  @return _scale-limits($_core, $_min, $_max);
+}

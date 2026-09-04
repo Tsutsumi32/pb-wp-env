@@ -1,0 +1,302 @@
+@use '../foundation/' as *;
+@use './scope' as block-editor;
+
+/******************************************************************
+* ブロック本文のタイポグラフィ
+*
+* .ly_blockEditor / .editor-styles-wrapper 配下の
+* 見出し・段落をフロントと同じトークンで揃える。
+* ブロック間の縦余白は _block-spacing.scss を参照。
+* scopeの制御により、フロント・管理画面・両方を制御可能
+*******************************************************************/
+
+@include block-editor.scope {
+  /* Paragraph
+  ----------------------------------------------------------------- */
+  p,
+  .wp-block-paragraph,
+  .wp-block-paragraph a {
+    @include font(16, 28, 0, get-font-weight('sans', 'normal'));
+  }
+
+  .wp-block-paragraph a {
+    color: get-color('text', 'link');
+  }
+
+  /* Head
+  ----------------------------------------------------------------- */
+  h2,
+  h2.wp-block-heading {
+    @include font(26, 39, 0, get-font-weight('sans', 'strong'));
+    color: get-color('text', 'inverse');
+    background-color: get-color('background', 'accent');
+    padding: s(14) s(24);
+    border-radius: s(4);
+
+    @include media(get-breakpoint-key('sp')) {
+      font-size: s(20);
+      padding: s(10) s(16);
+    }
+  }
+  h3,
+  h3.wp-block-heading {
+    @include font(22, 33, 0, get-font-weight('sans', 'strong'));
+    padding-bottom: s(14);
+    border-bottom: s(2) solid get-color('border', 'default');
+    position: relative;
+
+    @include media(get-breakpoint-key('sp')) {
+      font-size: s(18);
+      padding-bottom: s(10);
+    }
+
+    &::before {
+      content: '';
+      display: block;
+      width: s(50);
+      height: s(2);
+      background-color: get-color('border', 'link');
+      position: absolute;
+      bottom: s(-2);
+      left: 0;
+    }
+  }
+  h4,
+  h4.wp-block-heading {
+    @include font(20, 30, 0, get-font-weight('sans', 'strong'));
+    padding-left: s(14);
+    border-left: s(5) solid get-color('border', 'link');
+
+    @include media(get-breakpoint-key('sp')) {
+      font-size: s(18);
+      padding-left: s(12);
+    }
+  }
+  h5,
+  h5.wp-block-heading,
+  h6,
+  h6.wp-block-heading {
+    @include font(20, 30, 0, get-font-weight('sans', 'strong'));
+
+    @include media(get-breakpoint-key('sp')) {
+      font-size: s(18);
+    }
+  }
+
+  /* Image
+  ----------------------------------------------------------------- */
+  .wp-block-image {
+    width: 100%;
+
+    img {
+      width: 100%;
+    }
+  }
+
+  .wp-element-caption {
+    @include font(14, 21, 0, get-font-weight('sans', 'normal'));
+    margin-block: s(11) 0;
+    color: get-color('text', 'supplement');
+  }
+
+  /* リスト
+  ----------------------------------------------------------------- */
+  // 共通
+  //////////////////////////////////////////////
+  ul.wp-block-list,
+  ol.wp-block-list {
+    li {
+      @include font(16, 24, 0, get-font-weight('sans', 'normal'));
+      position: relative;
+      + li {
+        margin-top: s(9);
+      }
+    }
+
+    // 入れ子
+    ul.wp-block-list {
+      margin-top: s(8);
+    }
+  }
+
+  // 順序なし
+  //////////////////////////////////////////////
+  ul.wp-block-list {
+    list-style: none;
+    > li {
+      padding-left: s(10 + 6);
+      &::before {
+        content: '';
+        display: block;
+        width: s(6);
+        min-width: s(6);
+        height: s(6);
+        background-color: get-color('background', 'highlight');
+        border-radius: 100vh;
+        position: absolute;
+        top: s(8);
+        left: 0;
+      }
+
+      a {
+        color: get-color('text', 'link');
+      }
+
+      > ul.wp-block-list {
+        > li {
+          &::before {
+            height: s(1);
+            width: s(10);
+            min-width: s(10);
+            top: s(10);
+          }
+        }
+      }
+    }
+  }
+
+  // 順序あり
+  /////////////////////////////////////////////
+  ol.wp-block-list {
+    counter-reset: ol-item;
+    margin-inline: auto;
+    padding: 0;
+    list-style: none;
+
+    > li {
+      counter-increment: ol-item;
+      padding-left: s(24);
+
+      a {
+        color: get-color('text', 'link');
+      }
+
+      + li {
+        margin-top: s(8);
+      }
+
+      &::before {
+        content: counter(ol-item);
+        position: absolute;
+        top: 0;
+        left: 0;
+        white-space: nowrap;
+        @include font(16, 24, 0, get-font-weight('sans', 'strong'));
+        color: get-color('text', 'highlight');
+      }
+
+      // li 直下の入れ子のみ 1-1 形式（group 等を挟む別リストは対象外）
+      > ol.wp-block-list {
+        counter-reset: ol-item;
+        margin-top: s(8);
+
+        > li {
+          padding-left: s(35);
+
+          &::before {
+            content: counters(ol-item, '-');
+            @include font(16, 24, 0, get-font-weight('sans', 'medium'));
+          }
+        }
+      }
+    }
+  }
+
+  /* Table
+  ----------------------------------------------------------------- */
+  .wp-block-table {
+    @include media(get-breakpoint-key('sp')) {
+      overflow-x: auto;
+    }
+
+    thead {
+      border: none;
+      th {
+        @include font(14, 21, 0, get-font-weight('sans', 'demi'));
+        text-align: left;
+        background-color: rgba(get-color-palette('orner-sub'), 0.1);
+        padding: s(12);
+        border: s(1) solid get-color('border', 'muted');
+
+        @include media(get-breakpoint-key('sp')) {
+          width: s(197);
+        }
+      }
+    }
+
+    tbody {
+      td {
+        @include font(15, 22.5, 0, get-font-weight('sans', 'normal'));
+        text-align: left;
+        background-color: get-color('background', 'canvas');
+        padding: s(12);
+        border: s(1) solid get-color('border', 'muted');
+      }
+    }
+  }
+
+  /* Button
+  ----------------------------------------------------------------- */
+  .wp-block-buttons {
+    width: fit-content;
+    margin-inline: auto;
+  }
+
+  .wp-block-button__link.wp-element-button {
+    @include font(16, 20, 0, get-font-weight('sans', 'strong'));
+    @include hoverOpacity;
+    min-width: s(274);
+    height: s(60);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: get-color('background', 'link');
+    color: get-color('text', 'inverse');
+    border-radius: s(4);
+    margin-inline: auto;
+
+    @include media(get-breakpoint-key('sp')) {
+      height: s(55);
+      font-size: s(15);
+    }
+  }
+
+  /* Quote
+  ----------------------------------------------------------------- */
+  .wp-block-quote {
+    background-color: get-color('background', 'muted2');
+    margin-inline: auto;
+    padding: s(32);
+    border-left: s(3) solid get-color('border', 'accent');
+
+    @include media(get-breakpoint-key('sp')) {
+      padding: s(24);
+    }
+
+    .wp-block-paragraph {
+      @include font(16, 28, 0, get-font-weight('sans', 'normal'));
+    }
+  }
+
+  /* iframe
+  ----------------------------------------------------------------- */
+  .wp-block-embed__wrapper {
+    iframe {
+      aspect-ratio: 16 / 9;
+      width: 100%;
+      height: auto;
+    }
+  }
+}
+
+@include block-editor.admin-scope {
+  ul.wp-block-list {
+    padding-left: 0;
+  }
+
+  .wp-block-group {
+    ul.wp-block-list {
+      margin-block: 0;
+    }
+  }
+}

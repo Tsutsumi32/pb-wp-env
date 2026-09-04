@@ -1,0 +1,98 @@
+@use 'sass:map';
+@use 'sass:list';
+@use '../../variables/variables' as *;
+@use '../../functions/style-settings' as *;
+@use '../judgement/media' as *;
+
+/******************************************************************
+* _effect-apply-styles プロパティマップを出力する
+* @param $_styles (property: value, ...)
+*******************************************************************/
+@mixin _effect-apply-styles($_styles) {
+  @each $_prop, $_value in $_styles {
+    #{$_prop}: $_value;
+  }
+}
+
+/******************************************************************
+* set-effect エフェクトのスタイルを適用する
+* @param $_type-key エフェクト種類キー（$effectsのキー）
+* @param $_pattern-key エフェクトパターンキー（種類内のキー）
+*
+* $_effect-styles のパターン値は次の構造:
+*   (
+*     'default': (property: value, ...),
+*     $breakpointsキー: (property: value, ...), // 任意
+*   )
+* $media-query-strategy の差分は media() 側で吸収
+*******************************************************************/
+@mixin set-effect($_type-key, $_pattern-key: 'default') {
+  $_type-patterns: map.get($effects, $_type-key);
+
+  @if $_type-patterns == null {
+    @error "set-effect(): effect type key '#{$_type-key}' not found in $effects.";
+  }
+
+  @if list.index($_type-patterns, $_pattern-key) == null {
+    @error "set-effect(): effect pattern key '#{$_pattern-key}' not found in effect type '#{$_type-key}'.";
+  }
+
+  // 実際のスタイルはここで一元管理
+  $_effect-styles: (
+    'dropshadow': (
+      'default': (
+        'default': (
+          'box-shadow': s(2) s(5) s(15) 0 rgba(0, 0, 0, 0.35),
+        ),
+      ),
+      'light': (
+        'default': (
+          'box-shadow': 0 0 s(12) 0 rgba(255, 188, 0, 0.7),
+        ),
+      ),
+      'text': (
+        'default': (
+          'text-shadow': s(2) s(4) s(4) rgba(0, 0, 0, 0.25),
+        ),
+      ),
+      'text-light': (
+        'default': (
+          'text-shadow': 0 0 s(12) rgba(255, 188, 0, 0.7),
+        ),
+      ),
+      'lg': (
+        'default': (
+          'box-shadow': s(2) s(5) s(25) 0 rgba(0, 0, 0, 0.15),
+        ),
+      ),
+      'sm': (
+        'default': (
+          'box-shadow': s(2) s(5) s(8) 0 rgba(0, 0, 0, 0.25),
+        ),
+      ),
+    ),
+  );
+
+  $_styles-by-type: map.get($_effect-styles, $_type-key);
+  $_styles-by-bp: map.get($_styles-by-type, $_pattern-key);
+
+  @if $_styles-by-bp == null {
+    @error "set-effect(): styles are not defined for '#{$_type-key}' '#{$_pattern-key}' in _effects.scss.";
+  }
+
+  $_styles-default: map.get($_styles-by-bp, 'default');
+
+  @if $_styles-default == null {
+    @error "set-effect(): '#{$_type-key}' '#{$_pattern-key}' must include 'default'.";
+  }
+
+  @include _effect-apply-styles($_styles-default);
+
+  @each $_breakpoint-key, $_styles in $_styles-by-bp {
+    @if $_breakpoint-key != 'default' {
+      @include media($_breakpoint-key) {
+        @include _effect-apply-styles($_styles);
+      }
+    }
+  }
+}

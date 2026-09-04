@@ -1,0 +1,119 @@
+@use 'sass:map';
+@use 'sass:meta';
+@use 'sass:list';
+@use 'sass:math';
+@use '../../variables/variables' as *;
+@use '../../functions/strip-unit' as *;
+@use '../judgement/media' as *;
+
+@function _style-settings-base-value($_base) {
+  @if meta.type-of($_base) == 'string' {
+    @return $_base;
+  }
+
+  @return strip-unit($_base);
+}
+
+@function _style-settings-default-aspect-ratio($_setting) {
+  $_viewport-base: map.get($_setting, 'viewport-base');
+
+  @if $_viewport-base != null and strip-unit($_viewport-base) >= strip-unit($design-size-pc) * 0.5 {
+    @return $default-aspect-ratio-pc;
+  }
+
+  @return $default-aspect-ratio-sp;
+}
+
+@function _style-settings-aspect-ratio-threshold($_setting) {
+  $_aspect-ratio: map.get($_setting, 'aspect-ratio');
+
+  @if $_aspect-ratio != null {
+    @if meta.type-of($_aspect-ratio) == 'list' {
+      @return math.div(
+        strip-unit(list.nth($_aspect-ratio, 1)),
+        strip-unit(list.nth($_aspect-ratio, 2))
+      );
+    }
+
+    @return strip-unit($_aspect-ratio);
+  }
+
+  $_default-aspect-ratio: _style-settings-default-aspect-ratio($_setting);
+
+  @return math.div(
+    strip-unit(list.nth($_default-aspect-ratio, 1)),
+    strip-unit(list.nth($_default-aspect-ratio, 2))
+  );
+}
+
+@mixin _emit-style-settings-vars($_setting) {
+  $_type: map.get($_setting, 'type');
+  $_base-value: _style-settings-base-value(map.get($_setting, 'base-size'));
+  $_aspect-ratio-threshold: _style-settings-aspect-ratio-threshold($_setting);
+  $_font-s-base-stripped: strip-unit($font-s-base);
+
+  --aspect-ratio-threshold: #{$_aspect-ratio-threshold};
+
+  @if $_type == 'liquid' {
+    $_viewport-base-stripped: strip-unit(map.get($_setting, 'viewport-base'));
+
+    --liq-unit: calc(#{$_base-value} / #{$_viewport-base-stripped} * 100vw);
+  } @else if $_type == 'responsive' {
+    $_min-layout-width-stripped: strip-unit($min-layout-width);
+
+    --liq-unit: min(
+      calc(#{$_base-value} / #{$_min-layout-width-stripped} * 100vw),
+      calc(#{$_base-value} / #{$_font-s-base-stripped} * 1rem)
+    );
+  } @else if $_type == 'fixed' {
+    $_viewport-base-stripped: strip-unit(map.get($_setting, 'viewport-base'));
+    $_fixed-width-stripped: strip-unit(map.get($_setting, 'fixed-width'));
+
+    --liq-unit: calc(
+      #{$_base-value} /
+        #{$_viewport-base-stripped} *
+        #{$_fixed-width-stripped} /
+        #{$_font-s-base-stripped} *
+        1rem
+    );
+  }
+}
+
+/******************************************************************
+* style-settings-vars　値をセットするfunction(s / sv)のためのCSS変数を生成する
+* $style-settingsに基づいて、各ブレイクポイントで:rootにCSS変数を設定
+*   - --liq-unit                 : s() / sh() の横幅基準
+*   - --aspect-ratio-threshold   : sh() の比率基準（幅/高さ）
+*   - --lvh-vw-ratio             : sh() の lvh/vw 換算係数
+* sh() の lvh 換算は s() の値 × 比率 × var(--lvh-vw-ratio) で算出する
+* 各設定方法については、変数$style-settingsの箇所に記載する
+* @example
+*   @include style-settings-vars;
+*******************************************************************/
+@mixin style-settings-vars() {
+  :root {
+    // lvh/vw の比率（sh() 用。postcss-calc が各プロパティで除算できないため :root に集約）
+    --lvh-vw-ratio: calc(100lvh / 100vw);
+
+    $_default-key: list.nth(map.keys($style-settings), 1);
+    $_default: map.get($style-settings, $_default-key);
+    $_default-type: map.get($_default, 'type');
+
+    @if $_default-type != 'none' {
+      @include _emit-style-settings-vars($_default);
+    }
+
+    @each $key, $_break-value in $breakpoints {
+      @if map.has-key($style-settings, $key) {
+        @include media($key) {
+          $_setting: map.get($style-settings, $key);
+          $_type: map.get($_setting, 'type');
+
+          @if $_type != 'none' {
+            @include _emit-style-settings-vars($_setting);
+          }
+        }
+      }
+    }
+  }
+}

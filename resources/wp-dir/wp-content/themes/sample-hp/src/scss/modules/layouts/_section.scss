@@ -1,0 +1,38 @@
+@use '../../foundation/' as *;
+/******************************************************************
+* layout - section
+* $section-sizesで定義されたサイズごとにモディファイアクラスを生成
+* デフォルトはpadding marginにしたい場合は「__mg」を付与
+* デフォルトは上下余白　上だけにしたい場合「__top」 下だけにしたい場合「__bottom」付与
+* 例）ly_section __normal,  __large,  __small, ・・・
+*******************************************************************/
+.ly_section {
+  // $section-sizesの各サイズに対してモディファイアクラスを生成
+  @each $size-name, $sizes in $section-sizes {
+    &.__#{$size-name} {
+      @include section($size-name);
+
+      &.__top {
+        padding-bottom: 0;
+      }
+
+      &.__bottom {
+        padding-top: 0;
+      }
+
+      // マージンの場合
+      &.__mg {
+        @include section($size-name, 'mg');
+        padding-block: 0;
+
+        &.__top {
+          margin-bottom: 0;
+        }
+
+        &.__bottom {
+          margin-top: 0;
+        }
+      }
+    }
+  }
+}

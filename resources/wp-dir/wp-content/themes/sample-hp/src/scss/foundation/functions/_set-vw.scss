@@ -1,0 +1,43 @@
+@use './strip-unit' as *;
+/******************************************************************
+* setVw　vw値を返す
+* @param $_size 計算したい値(単位無し)
+* @param $_base 基準となる値(単位無し)
+* @param $_min	最小値(単位有)　※値がマイナスでも、大小は絶対値で考える
+* @param $_min	最大値(単位有)　※値がマイナスでも、大小は絶対値で考える
+*******************************************************************/
+@function set-vw($_size, $_base, $_min: null, $_max: null) {
+  // 万が一単位があったら除外する
+  $_size: strip-unit($_size);
+  $_base: strip-unit($_base);
+
+  // vw の基本計算式
+  $_vw-value: calc(($_size / $_base) * 100vw);
+
+  // 両方指定された場合の clamped vw
+  @if $_min != null and $_max != null {
+    // マイナスの場合は逆に入れ替える
+    @if $_size < 0 and $_min > $_max {
+      @return clamp($_max, $_vw-value, $_min);
+    }
+    @return clamp($_min, $_vw-value, $_max);
+  }
+
+  // 片方だけ指定された場合 → min() / max() を使用
+  @if $_min != null {
+    @if $_size < 0 {
+      @return min($_min, $_vw-value);
+    }
+    @return max($_min, $_vw-value);
+  }
+
+  @if $_max != null {
+    @if $_size < 0 {
+      @return max($_max, $_vw-value);
+    }
+    @return min($_max, $_vw-value);
+  }
+
+  // 範囲指定なし → 素の vw を返す
+  @return $_vw-value;
+}

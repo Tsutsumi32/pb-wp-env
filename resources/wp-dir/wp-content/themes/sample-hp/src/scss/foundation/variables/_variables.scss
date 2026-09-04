@@ -1,0 +1,1100 @@
+@use 'sass:meta';
+@use 'sass:map';
+@use 'sass:list';
+@use '../mixins/setup/scrollbar-width-set' as scrollbar-config;
+/******************************************************************
+* 変数・取得設定
+* Mapの取得用functionがある場合は、該当のfunctionを使用して値を設定します。
+* (スニペット使用推奨)
+*******************************************************************/
+/* base font size
+----------------------------------------------------------------- */
+// ベースフォントサイズ(htmlサイズ)
+// vwやremの計算に使用する
+$font-s-base: 16px;
+
+// font() 経由の font-size の下限（リキッド換算の結果がこれ未満にならない）
+$font-size-min: 11px;
+// 下限を適用する境界のブレイクポイントキー（$breakpoint-keys のキー名）
+// 大きい画面側に下限を適用し、このキーより小さい画面では下限なし。null で全幅適用
+// pc-first: media(key) 未満で下限なし / sp-first: media(key) 以上で下限あり
+$font-size-min-media: 'sp';
+
+/* size
+----------------------------------------------------------------- */
+// デザインサイズ
+//////////////////////////////////////////////
+$design-size-sp: 390;
+$design-size-pc: 1440;
+
+// デフォルト aspect-ratio（sh() の aspect-ratio 未指定時のフォールバック）
+// (幅, 高さ) のリスト
+$default-aspect-ratio-pc: ($design-size-pc, 1000);
+$default-aspect-ratio-sp: ($design-size-sp, 700);
+
+// レスポンシブ(rem)対応時のSPの最小幅
+// これ以下はリキッドになるように_style-settings-varsで設定
+//////////////////////////////////////////////
+$min-layout-width: $design-size-sp;
+
+/* breakpoint
+----------------------------------------------------------------- */
+// メディアクエリの設計方針
+// 'sp-first': SPファースト（小さい画面から大きい画面へ上書き）
+// 'pc-first': PCファースト（大きい画面から小さい画面へ上書き）
+//////////////////////////////////////////////
+$media-query-strategy: 'pc-first' !default;
+
+// ブレイクポイントのキー名一覧マップ（一元管理）
+// 構造: $breakpoint-keys: (key: value)
+// 実装の際は get-breakpoint-key() を使用して値を取得
+//////////////////////////////////////////////
+$breakpoint-keys: (
+  // sp-first
+  'spL': 'spL',
+  // 'tab': 'tab',
+  'pc': 'pc',
+  'pcL': 'pcL',
+  'pcLL': 'pcLL',
+
+  // pc-first
+  // 'pcS': 'pcS',
+  // 'pcSS': 'pcSS',
+  'tab': 'tab',
+  'sp': 'sp',
+  'spS': 'spS'
+) !default;
+
+// get-breakpoint-key ブレイクポイントのキー名を取得する
+// @param $key ブレイクポイントキーのキー名
+// @return ブレイクポイントのキー名（文字列）
+//  例) get-breakpoint-key('tab') → 'tab'
+//////////////////////////////////////////////
+@function get-breakpoint-key($_key) {
+  $_value: map.get($breakpoint-keys, $_key);
+
+  @if $_value ==null {
+    @error "Breakpoint key '#{$_key}' not found in $breakpoint-keys.";
+  }
+
+  @return $_value;
+}
+
+// ブレイクポイントのマップ（文字列キー）
+// sp-firstとpc-firstで、文字列キーを変更することで柔軟に対応可能
+//
+// sp-firstの場合の例（小さい順）:
+//   'tab': 560,
+//   'tabL': 768,
+//   'pc': 1120,
+//   'pcL': 1400,
+//   'pcLL': 1920
+//
+// pc-firstの場合の例（大きい順）:
+//   'pcS': 1920,
+//   'pcSS': 1400,
+//   'tab': 1120,
+//   'tabS': 768,
+//   'sp': 560
+// 注意: ★sp-firstとpc-firstで、この値自体を手動で書き換える必要があります。
+//       必ずsp-first、pc-firstで順番(小さい順・大きい順)を変えることが必要です。
+//       ★メディアクエリは「以上」と「未満」の範囲設定
+//////////////////////////////////////////////
+// sp-first
+// $breakpoints: (
+//   get-breakpoint-key('spL'): 580,
+//   get-breakpoint-key('tab'): 768,
+//   get-breakpoint-key('pcS'): 1024,
+//   get-breakpoint-key('pcL'): $min-width-container-pc,
+//   get-breakpoint-key('pcLL'): $design-size-pc,
+// ) !default;
+// pc-first
+$breakpoints: (
+  // PC小(デザインサイズ)
+  // get-breakpoint-key('pcS'): $design-size-pc,
+  // pcデザインコンテナ(確保したい幅(コンテナの一番大きい最大幅)) + 確保したい左右余白 * 2 + スクロールバーバッファ)
+  // get-breakpoint-key('pcSS'): 1200 + (40 * 2) + scrollbar-config.$width-scrollbar,
+  // TAB 1025-1200程度 (ipad pro(1024) ・ ipad mini(768) 含む。 PCレイアウト基準)
+  get-breakpoint-key('tab'): 1200,
+  // TAB小 SP大(SPレイアウト基準)
+  get-breakpoint-key('sp'): 768,
+  // SP
+  get-breakpoint-key('spS'): 570
+) !default;
+/* 中
+/*
+----------------------------------------------------------------- */
+
+// get-breakpoint ブレイクポイントの値を取得する
+// @param $key ブレイクポイントのキー名
+// @return ブレイクポイントの値（数値）
+//  例) get-breakpoint('tab') → 580
+//////////////////////////////////////////////
+@function get-breakpoint($_key) {
+  $_value: map.get($breakpoints, $_key);
+
+  @if $_value ==null {
+    @error "Breakpoint key '#{$_key}' not found in $breakpoints.";
+  }
+
+  @return $_value;
+}
+
+/* style
+----------------------------------------------------------------- */
+// レスポンシブ・リキッドの設定
+// 値の設定は_style-settings.scssの「s()」「sh()」functionを使用します。
+// s()を使用することで、本設定に基づいてレスポンシブ・リキッドの対応が設定されます
+// sh()はs()に加え、横長端末ではlvh基準で縮小します（詳細は_style-settings.scss参照）
+// (style-settings-vars.scssのmixinで、CSS変数を生成し、計算に使用します。)
+//
+// 'type': 'liquid' | 'responsive' | 'fixed' | 'none'
+//   - 'liquid': vwで計算（リキッド）
+//   - 'responsive': remで計算（レスポンシブ(rem値を使用、$min-layout-width以下はvw)）
+//   - 'fixed': 指定のリキッドの変化において、指定時点でのサイズに固定化（vw-to-pixelを使用）
+//   - 'none': 変更しない（前のブレイクポイントの値を継承）
+// 'base-size': 計算値の倍率を設定(基本は1 s(20) => 1:20px  2:40px)
+// 'viewport-base': vwの計算基準となる画面幅（リキッドまたはfixedの場合に使用）
+// 'aspect-ratio': sh()の比率基準（幅/高さ）。(幅, 高さ) のリストまたは数値（幅/高さ）。
+//   省略時は $default-aspect-ratio-pc または $default-aspect-ratio-sp を使用
+// 'fixed-width': 固定化する時点の画面幅（px、fixedの場合のみ使用）
+// 最初のキーは'default'とし、sp-first/pc-firstのどちらでも、メディアクエリを使用しない範囲の指定を行う
+// default以降は、$breakpointsのキー名で各ブレイクポイントでの設定を行う
+//////////////////////////////////////////////
+// sp-first
+// $style-settings: (
+//   'default': (
+//     'type': 'liquid',
+//     'base-size': 1,
+//     'viewport-base': $design-size-sp,
+//   ),
+//   get-breakpoint-key('spL'): (
+//       'type': 'fixed',
+//       'base-size': 1,
+//       // SPのリキッド基準点
+//       'viewport-base': $design-size-sp,
+//       // TABの時点で固定化
+//       'fixed-width': get-breakpoint('spL'),
+//     ),
+//   // pcに切り替えてリキッド or 必要な場合のみレイアウト変更(responsiveかnone)⇒ spレイアウトを中心に、必要な個所の調整
+//   get-breakpoint-key('tab'): (
+//     'type': 'none',
+//   ),
+//   // レイアウト変更想定
+//   get-breakpoint-key('pcS'): (
+//     'type': 'liquid',
+//     'base-size': 1,
+//     'viewport-base': get-breakpoint('pcL'),
+//   ),
+//   get-breakpoint-key('pcL'): (
+//     'type': 'responsive',
+//     'base-size': 1,
+//   ),
+//   get-breakpoint-key('pcLL'): (
+//     'type': 'liquid',
+//     'base-size': 1,
+//     'viewport-base': get-breakpoint('pcLL'),
+//   ),
+// );
+
+// pc-first
+$style-settings: (
+  'default': (
+    // pcデザイン基準でリキッド
+    'type': 'liquid',
+    'base-size': 1,
+    'viewport-base': $design-size-pc,
+    'aspect-ratio': $default-aspect-ratio-pc,
+  ),
+  // get-breakpoint-key('pcS'): (
+  //   // 最大コンテナが入りきるまでレスポンシブ
+  //   'type': 'responsive',
+  //   'base-size': 1,
+  //   'aspect-ratio': $default-aspect-ratio-pc,
+  // ),
+  // get-breakpoint-key('pcSS'): (
+  //   // 最大コンテナが入りきる地点を基準にリキッド
+  //   'type': 'liquid',
+  //   'base-size': 1,
+  //   'viewport-base': get-breakpoint('pcSS'),
+  //   'aspect-ratio': $default-aspect-ratio-pc,
+  // ),
+  get-breakpoint-key('tab'): (
+      // pcリキッド基準で計算し、倍率調整・スタイル・レイアウト調整
+      'type': 'liquid',
+      'base-size': 1.5,
+      'viewport-base': $design-size-pc,
+      'aspect-ratio': $default-aspect-ratio-pc,
+    ),
+  get-breakpoint-key('sp'): (
+    // spレイアウト変更
+    // spリキッド基準で計算し、倍率調整・スタイル・レイアウト調整(この区間のみに調整適用させる)
+    'type': 'liquid',
+    'base-size': 0.7,
+    'viewport-base': $design-size-sp,
+    'aspect-ratio': $default-aspect-ratio-sp,
+  ),
+  get-breakpoint-key('spS'): (
+    // spデザイン基準リキッド
+    'type': 'liquid',
+    'base-size': 1,
+    'viewport-base': $design-size-sp,
+    'aspect-ratio': $default-aspect-ratio-sp,
+  ),
+);
+
+/* section
+----------------------------------------------------------------- */
+// セクションサイズの定義
+// キー: サイズ名（ly_sectionの モディファイアクラス名として使用）
+// 値:
+//   - 'default': メディアクエリを使用しない時のデフォルト値（sp-first/pc-first共通）
+//   - $breakpointsのキー名 : 該当のメディアクエリで値を設定
+// 重要: 'default' の次に「上書きしたい順序」でキーを定義すること
+// （section/container ミックスインは、この定義順でメディアクエリを出力する）
+// 単位なし => s(数値)
+//////////////////////////////////////////////
+$section-sizes: (
+  // Figma: space/section-space/s
+  's': (
+      'default': 120,
+      get-breakpoint-key('sp'): 64,
+    ),
+  // Figma: space/section-space/m
+  'm': (
+      'default': 144,
+      get-breakpoint-key('sp'): 104,
+    ),
+  // Figma: space/section-space/l
+  'l': (
+      'default': 168,
+      get-breakpoint-key('sp'): 120,
+    )
+);
+
+/* content space
+----------------------------------------------------------------- */
+// コンテンツ余白サイズの定義
+// セクション間のグループコンテンツ間に使用します。
+// キー: サイズ名（helperクラスのモディファイア名として使用）
+// 値:
+//   - 'default': メディアクエリを使用しない時のデフォルト値（sp-first/pc-first共通）
+//   - $breakpointsのキー名 : 該当のメディアクエリで値を設定
+// 重要: 'default' の次に「上書きしたい順序」でキーを定義すること
+// （content-space ミックスインは、この定義順でメディアクエリを出力する）
+// 単位なし => s(数値)
+//////////////////////////////////////////////
+$content-space: (
+  // Figma: space/content-space/xs
+  'xs': (
+      'default': 24,
+      get-breakpoint-key('sp'): 16,
+    ),
+  // Figma: space/content-space/s
+  's': (
+      'default': 40,
+      get-breakpoint-key('sp'): 24,
+    ),
+  // Figma: space/content-space/m
+  'm': (
+      'default': 64,
+      get-breakpoint-key('sp'): 32,
+    ),
+  // Figma: space/content-space/l
+  'l': (
+      'default': 80,
+      get-breakpoint-key('sp'): 40,
+    ),
+  // Figma: space/content-space/xl
+  'xl': (
+      'default': 104,
+      get-breakpoint-key('sp'): 64,
+    )
+);
+
+/* container
+----------------------------------------------------------------- */
+// コンテナサイズの定義
+// キー: コンテナの種類（ly_container のモディファイアクラス名として使用）
+// 値:
+//   - 'default': メディアクエリを使用しない時のデフォルト値（sp-first/pc-first共通）
+//   - $breakpointsのキー名 : 該当のメディアクエリで値を設定
+// 重要: 'default' の次に「上書きしたい順序」でキーを定義すること
+// （section/container ミックスインは、この定義順でメディアクエリを出力する）
+// 各値は (padding: 余白値, max-width: 最大幅) の形式
+// 単位なし => s(数値)　単位あり => 直接指定
+// max-widthはオプション（nullの場合は設定しない）
+// SPの max-width は全コンテナ種別（s/m/l）共通。Figma の container 値に依存せず、この数値（単位なし）のみを正とする
+//////////////////////////////////////////////
+// sp時のコンテナマックス幅
+$container-max-width-sp: 560;
+
+$container-sizes: (
+  's': (
+    // pcデザインデータサイズ
+    'default': (
+        'padding': 40,
+        // container/s-max-absolute (PC): 820
+        'max-width': 900,
+      ),
+    get-breakpoint-key('tab'): (
+      'padding': 40,
+      'max-width': null,
+    ),
+    // sp用を広く調整
+    get-breakpoint-key('sp'): (
+        'padding': 40,
+        'max-width': null,
+      ),
+    // spデザインデータサイズ
+    get-breakpoint-key('spS'): (
+        'padding': 24,
+        'max-width': null,
+      ),
+  ),
+  'm': (
+    'default': (
+      'padding': 40,
+      // container/m-max-absolute (PC): 1080
+      'max-width': 1160,
+    ),
+    get-breakpoint-key('tab'): (
+      'padding': 40,
+      'max-width': null,
+    ),
+    get-breakpoint-key('sp'): (
+      'padding': 40,
+      'max-width': null,
+    ),
+    get-breakpoint-key('spS'): (
+      'padding': 24,
+      'max-width': null,
+    ),
+  ),
+  'l': (
+    'default': (
+      'padding': 40,
+      // container/l-max-absolute (PC): 1200
+      'max-width': 1280,
+    ),
+    get-breakpoint-key('tab'): (
+      'padding': 40,
+      'max-width': null,
+    ),
+    get-breakpoint-key('sp'): (
+      'padding': 40,
+      'max-width': null,
+    ),
+    get-breakpoint-key('spS'): (
+      'padding': 24,
+      'max-width': null,
+    ),
+  ),
+);
+
+/* color
+/* _color-themes.scss 「mod()」にて、data-theme属性を元に色を出し分け可能
+/* ①-1 モード切り替えあり - 自動色変換
+/*     ⇒ ・$colorsにモード毎の色を定義
+/*        ・_color-themes.scss generate-color-themes()にて
+            data-theme属性毎に、$colorsの色をCSSに設定(globalで呼び出し)
+/*        ・get-color(①)で、設定したCSS変数を取得する
+/* ①-2 モード切り替えあり - mod()を使用して手動で変換
+/*     ⇒ ・上記のCSS生成不要(generate-color-themes()不要)
+/*        ・※下記のカラー実装パターン参照
+/* ②   モード切り替えなし
+/*     ⇒ ・※下記のカラー実装パターン参照
+/*
+/* <カラー実装パターン>
+/* ・役割毎に色が管理されている場合
+/*   ⇒ $colorsを使用する(モード切り替えがない場合でもdefaultで運用)
+/* ・役割毎に管理されていない場合
+/*   ⇒ $color-paletteを直接参照するget-color(②)を使用する
+----------------------------------------------------------------- */
+
+// 色パレットマップ（一元管理）
+// プロジェクト全体で使用する色を定義（役割を持たない単純な色名）
+// 構造: $color-palette: (name: value)
+// 同じ色は1回のみ定義
+//////////////////////////////////////////////
+$color-palette: (
+  // Figma Variable Collection: _PrimitiveColor（Figmaの name は category/番号 だが、mapキーはハイフンに統一）
+  'brand-01': #bbcd31,
+  'brand-02': #e9a025,
+  'neutral-01': #fcfcfc,
+  'neutral-02': #3b3b3b,
+  'neutral-03': #b8b8b8,
+  'neutral-04': #efefef,
+  'neutral-05': #868686,
+  'neutral-06': #f6f6f6,
+  'neutral-07': #d9d9d9,
+  'state-01': #d01111,
+  'support-01': #afbc47
+) !default;
+
+// カラーパレットget
+// カラーパレットから直接使用するプロジェクトの場合には、本メソッドをget-colorと命名し、以下の$colorsとget-colorを廃止する
+@function get-color-palette($_key) {
+  $value: map.get($color-palette, $_key);
+
+  @if $value ==null {
+    @error "Color key '#{$_key}' not found in $color-palette.";
+  }
+
+  @return $value;
+}
+
+// モード別カラーマップ（一元管理）
+// 構造: $colors: (mode: (group: (name: value)))
+// 例: $colors: (default: (text: (primary: #2B2D31)))
+// 注意: 'default'モードは必須。defaultモードは:rootに、その他は[data-theme="モード名"]に出力される
+// _color-themes.scssによって、本変数を元に、モード毎のCSS変数を設定
+// 下記get-color() functionで、定義されるCSS変数の取得が可能
+// ※モード切替自体はJSで制御 JSでユーザー設定や切り替えボタンで data-theme属性の切り替えを行う
+//////////////////////////////////////////////
+$colors: (
+  'default': (
+    'text': (
+      'accent': get-color-palette('support-01'),
+      'brand': get-color-palette('brand-01'),
+      'brand-subtle': get-color-palette('brand-02'),
+      'danger': get-color-palette('state-01'),
+      'default': get-color-palette('neutral-02'),
+      'inverse': get-color-palette('neutral-01'),
+      'muted': get-color-palette('neutral-03'),
+    ),
+    'background': (
+      'brand': get-color-palette('brand-01'),
+      'brand-subtle': get-color-palette('brand-02'),
+      'canvas': get-color-palette('neutral-01'),
+      'contents1': get-color-palette('neutral-01'),
+      'contents2': get-color-palette('neutral-04'),
+      'inverse': get-color-palette('neutral-02'),
+    ),
+    'border': (
+      'brand': get-color-palette('brand-01'),
+      'brand-subtle': get-color-palette('brand-02'),
+      'danger': get-color-palette('state-01'),
+      'default': get-color-palette('neutral-02'),
+      'inverse': get-color-palette('neutral-01'),
+      'subtle': get-color-palette('neutral-03'),
+    ),
+    'icon-decoration': (
+      'brand': get-color-palette('brand-01'),
+      'brand-subtle': get-color-palette('brand-02'),
+      'default': get-color-palette('neutral-02'),
+      'inverse': get-color-palette('neutral-01'),
+      'muted': get-color-palette('neutral-04'),
+      'muted-2': get-color-palette('neutral-06'),
+      'muted-3': get-color-palette('neutral-07'),
+      'subtle': get-color-palette('neutral-03'),
+      'subtle-2': get-color-palette('neutral-05'),
+    ),
+    'ui': (
+      'select-text': #ffffff,
+      'select-bg': #000000,
+      'scroll-handle': #000000,
+      'scroll-track': #dadada,
+      'focus-outline': #ffc400,
+    ),
+    'state': (
+      'error': get-color-palette('state-01'),
+    ),
+  ),
+) !default;
+
+// モード選択用変数(mod()で使用する)
+//////////////////////////////////////////////
+$color-mode-dark: 'dark';
+
+// ※$colorsを使用する場合
+// get-color CSS変数を返す function
+// _color-theme.scss(generate-color-themes())で生成したCSS変数を取得
+// @param $group カラーグループ名（text, bg, blue など）
+// @param $name カラー名（primary, secondary など）
+// @return CSS変数参照
+//  例) get-color('text', 'primary') → var(--color-text-primary)
+//  例) get-color('bg', 'base') → var(--color-bg-base)
+//////////////////////////////////////////////
+@function get-color($_group, $_name) {
+  @return var(--color-#{$_group}-#{$_name});
+}
+
+// 役割が確定しているカラーはフラットで管理(主にglobalに設定する値)
+// デフォルトテキスト色
+$color-base-text: get-color('text', 'default');
+// bodyの色
+$color-body-bg: get-color('background', 'canvas');
+// 選択色
+//$color-select-text: get-color('ui', 'select-text');
+//$color-select-bg: get-color('ui', 'select-bg');
+// focus
+//$color-focus-outline: get-color('ui', 'focus-outline');
+// scrollbar
+//$color-scroll-track: get-color('ui', 'scroll-track');
+//$color-scroll-handle: get-color('ui', 'scroll-handle');
+
+/* font
+----------------------------------------------------------------- */
+// フォントファイルのベースパス
+//////////////////////////////////////////////
+$font-path-base: '../../assets/fonts/';
+
+// 共通フォールバック（全スタックで汎用フォントの直前に付与）
+//////////////////////////////////////////////
+$font-family-fallbacks: ('Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji') !default;
+
+// フォントウェイト一覧マップ（一元管理）
+// 構造: $font-weights: (key: value)
+// 実装の際は get-font-weight() を使用して値を取得
+//////////////////////////////////////////////
+$font-weight-key: ('normal', 'medium', 'strong') !default;
+
+// フォント設定マップ(フォントファイルを用意した上で設定 => font-face設定)
+// 各フォントファミリーの設定を定義
+// key名：フォントファミリー名(小文字 スペースは「-」つなぎ)
+// 'family': フォントファミリー名（CSSで使用する名前）
+// 'fallback': フォールバック用のフォント
+// 'weight': フォントウェイト設定マップ（$font-weight-keyに対応）
+// 'files': フォントファイルの設定配列
+// ※CDNを利用する場合、filesは設定不要
+//   - 'file': ファイル名（$font-path-baseからの相対パス）
+//   - 'weight': フォントウェイト（数値または範囲文字列 '100 900'）
+//   - 'style': フォントスタイル（'normal' | 'italic'、デフォルト: 'normal'）
+//   - 'variable': 可変フォントかどうか（true | false、デフォルト: false）
+//   - 'variable-axes': 可変フォントの軸（'wght' | 'wght opsz' など、variable: trueの場合のみ）
+//////////////////////////////////////////////
+$font-configs: (
+  'roboto': (
+    'family': 'Roboto',
+    'fallback': sans-serif,
+    'weight': (
+      'normal': 400,
+      'medium': 500,
+      'strong': 700,
+    ),
+    'files': (
+      (
+        'file': 'Roboto-Regular.woff2',
+        'weight': 400,
+        'style': normal,
+      ),
+      (
+        'file': 'Roboto-Medium.woff2',
+        'weight': 500,
+        'style': normal,
+      ),
+      (
+        'file': 'Roboto-Bold.woff2',
+        'weight': 700,
+        'style': normal,
+      ),
+    ),
+  ),
+  'noto-sans-jp': (
+    'family': 'Noto Sans JP',
+    'fallback': sans-serif,
+    'weight': (
+      'normal': 400,
+      'medium': 500,
+      'strong': 600,
+    ),
+    'files': (
+      (
+        'file': 'NotoSansJP-Regular.woff2',
+        'weight': 400,
+        'style': normal,
+      ),
+      (
+        'file': 'NotoSansJP-Medium.woff2',
+        'weight': 500,
+        'style': normal,
+      ),
+      (
+        'file': 'NotoSansJP-SemiBold.woff2',
+        'weight': 600,
+        'style': normal,
+      ),
+    ),
+  ),
+) !default;
+
+// _font-family-stack プライマリ・共通フォールバック・汎用フォールバックを連結する
+// @param $_families プライマリの font-family リスト
+// @param $_generic-fallback 汎用フォールバック（sans-serif 等）
+//////////////////////////////////////////////
+@function _font-family-stack($_families, $_generic-fallback) {
+  @return list.join(
+    $_families,
+    list.join($font-family-fallbacks, ($_generic-fallback), $separator: comma),
+    $separator: comma
+  );
+}
+
+// get-font-family フォント設定マップから値を取得する
+// @param $font-key フォントキー名（$font-configsのキー）
+// @return フォントファミリー名・$font-family-fallbacks・汎用フォールバックの組み合わせ
+//  例) get-font-family('noto-sans-jp') → 'Noto Sans JP', 'Apple Color Emoji', ..., sans-serif
+//  例) family がリストの場合 → 'Yu Mincho', 'YuMincho', 'Apple Color Emoji', ..., sans-serif
+//////////////////////////////////////////////
+@function get-font-family($_font-key) {
+  $_config: map.get($font-configs, $_font-key);
+
+  @if $_config ==null {
+    @error "Font key '#{$_font-key}' not found in $font-configs.";
+  }
+
+  $_family: map.get($_config, 'family');
+  $_fallback: map.get($_config, 'fallback');
+
+  @if meta.type-of($_family) == 'list' {
+    @return _font-family-stack($_family, $_fallback);
+  }
+
+  @return _font-family-stack(($_family), $_fallback);
+}
+
+// get-font-weight フォント設定マップからフォントウェイトの値を取得する
+// @param $font-key フォントキー名（$font-configsのキー）
+// @param $weight-key フォントウェイトのキー名（$font-weight-keyの値）
+// @return フォントウェイトの値（数値）
+//  例) get-font-weight('noto-sans-jp', 'strong') → 700
+//////////////////////////////////////////////
+@function get-font-weight($_font-key, $_weight-key) {
+  $_config: map.get($font-configs, $_font-key);
+
+  @if $_config ==null {
+    @error "Font key '#{$_font-key}' not found in $font-configs.";
+  }
+
+  @if list.index($font-weight-key, $_weight-key) == null {
+    @error "Font weight key '#{$_weight-key}' not found in $font-weight-key.";
+  }
+
+  $_weight-map: map.get($_config, 'weight');
+
+  @if $_weight-map == null {
+    @error "Weight map not found for font key '#{$_font-key}' in $font-configs.";
+  }
+
+  $_value: map.get($_weight-map, $_weight-key);
+
+  @if $_value == null {
+    @error "Weight key '#{$_weight-key}' not found in font '#{$_font-key}' weight map.";
+  }
+
+  @return $_value;
+}
+
+// ベースフォント
+$base_font_key: 'noto-sans-jp' !default;
+$base_font: get-font-family($base_font_key);
+// font() の letter-spacing 換算係数（デザインデータの tracking 値 ÷ この値 × 1em）
+// Figma: 100 / Adobe XD: 1000
+$font-letter-spacing-unit: 100;
+// font() の font-weight デフォルト値（$_key 未指定時）
+$font-weight-default: 500;
+
+// テキストスタイル一覧マップ（一元管理）
+// 構造:
+// $text-styles: (
+//   key: (
+//     'weight': $font-weight-keyのキー,
+//     'size': 数値 | ('default': 値, $breakpointsキー: 値),
+//     'line': 数値 | % | ('default': 値, $breakpointsキー: 値)（数値は ÷ font-size、% は ÷ 100）
+//     'space': 数値
+//   )
+// )
+//////////////////////////////////////////////
+$text-styles: (
+  'etc/l': (
+    'weight': 'medium',
+    'size': (
+      'default': 18,
+      get-breakpoint-key('sp'): 16,
+    ),
+    'line': 21.6,
+    'space': 0,
+  ),
+  'etc/m': (
+    'weight': 'medium',
+    'size': (
+      'default': 16,
+      get-breakpoint-key('sp'): 15,
+    ),
+    'line': 19.2,
+    'space': 0,
+  ),
+  'etc/s': (
+    'weight': 'medium',
+    'size': (
+      'default': 14,
+      get-breakpoint-key('sp'): 14,
+    ),
+    'line': 16.8,
+    'space': 0,
+  ),
+  'etc/sStrong': (
+    'weight': 'strong',
+    'size': 14,
+    'line': 16.8,
+    'space': 0,
+  ),
+  'etc/xl': (
+    'weight': 'medium',
+    'size': (
+      'default': 20,
+      get-breakpoint-key('sp'): 18,
+    ),
+    'line': (
+      'default': 24,
+      get-breakpoint-key('sp'): 20,
+    ),
+    'space': 0,
+  ),
+  'etc/xlStrong': (
+    'weight': 'strong',
+    'size': 20,
+    'line': 24,
+    'space': 0,
+  ),
+  'etc/xs': (
+    'weight': 'normal',
+    'size': (
+      'default': 12,
+      get-breakpoint-key('sp'): 12,
+    ),
+    'line': 12,
+    'space': 0.4,
+  ),
+  'head/l': (
+    'weight': 'strong',
+    'size': (
+      'default': 45,
+      get-breakpoint-key('sp'): 40,
+    ),
+    'line': (
+      'default': 49.5,
+      get-breakpoint-key('sp'): 44.2,
+    ),
+    'space': 1.4,
+  ),
+  'head/m': (
+    'weight': 'strong',
+    'size': (
+      'default': 36,
+      get-breakpoint-key('sp'): 28,
+    ),
+    'line': (
+      'default': 39.6,
+      get-breakpoint-key('sp'): 36.4,
+    ),
+    'space': 1.1,
+  ),
+  'head/s': (
+    'weight': 'strong',
+    'size': (
+      'default': 28,
+      get-breakpoint-key('sp'): 22,
+    ),
+    'line': (
+      'default': 36.4,
+      get-breakpoint-key('sp'): 28.6,
+    ),
+    'space': 0.8,
+  ),
+  'head/xl': (
+    'weight': 'strong',
+    'size': (
+      'default': 72,
+      get-breakpoint-key('sp'): 50,
+    ),
+    'line': (
+      'default': 79.2,
+      get-breakpoint-key('sp'): 53,
+    ),
+    'space': 2.2,
+  ),
+  'head/xs': (
+    'weight': 'strong',
+    'size': (
+      'default': 22,
+      get-breakpoint-key('sp'): 20,
+    ),
+    'line': (
+      'default': 24.2,
+      get-breakpoint-key('sp'): 26,
+    ),
+    'space': 0.7,
+  ),
+  'paragraph/l': (
+    'weight': 'normal',
+    'size': 18,
+    'line': 30.6,
+    'space': 0.5,
+  ),
+  'paragraph/m': (
+    'weight': 'medium',
+    'size': 15,
+    'line': 25.5,
+    'space': 0.5,
+  ),
+  'paragraph/mStrong': (
+    'weight': 'strong',
+    'size': 15,
+    'line': 15,
+    'space': 0.5,
+  ),
+  'paragraph/s': (
+    'weight': 'normal',
+    'size': (
+      'default': 12,
+      get-breakpoint-key('sp'): 12,
+    ),
+    'line': (
+      'default': 20.4,
+      get-breakpoint-key('sp'): 20.4,
+    ),
+    'space': 0.4,
+  ),
+  'paragraph/xl': (
+    'weight': 'normal',
+    'size': 20,
+    'line': 34,
+    'space': 0.6,
+  ),
+  'paragraph/xlStrong': (
+    'weight': 'strong',
+    'size': 20,
+    'line': 20,
+    'space': 0.6,
+  ),
+) !default;
+
+// get-text-style テキストスタイルを取得する
+// @param $style-key テキストスタイルキー名（$text-stylesのキー）
+// @return テキストスタイル設定マップ
+//  例) get-text-style('body-md') → ('font': 'noto-sans-jp', ...)
+//////////////////////////////////////////////
+@function get-text-style($_style-key) {
+  $_style: map.get($text-styles, $_style-key);
+
+  @if $_style == null {
+    @error "Text style key '#{$_style-key}' not found in $text-styles.";
+  }
+
+  @return $_style;
+}
+
+/* image
+----------------------------------------------------------------- */
+// 画像パス一覧マップ（一元管理）
+// 構造: $image-paths: (key: value)
+// 実装の際は get-image-path() を使用して値を取得
+//////////////////////////////////////////////
+$image-paths: (
+  'webp': '../../assets/images/webp/',
+  'avif': '../../assets/images/avif/',
+  'compression': '../../assets/images/compression/',
+  'svg': '../../assets/images/svg/',
+) !default;
+
+// get-image-path 画像パスの値を取得する
+// @param $key 画像パスのキー名
+// @return 画像パスの値（文字列）
+//  例) get-image-path('webp') → '../../assets/images/webp/'
+//////////////////////////////////////////////
+@function get-image-path($_key) {
+  $_value: map.get($image-paths, $_key);
+
+  @if $_value ==null {
+    @error "Image path key '#{$_key}' not found in $image-paths.";
+  }
+
+  @return $_value;
+}
+
+/* height
+----------------------------------------------------------------- */
+// 高さ一覧マップ（一元管理）
+// 構造: $heights: (key: value)
+// 実装の際は get-height() を使用して値を取得
+//////////////////////////////////////////////
+$heights: (
+  'header-pc': 80,
+  'header-sp': 60,
+) !default;
+
+// get-height 高さの値を取得する
+// @param $key 高さのキー名
+// @return 高さの値（数値）
+//  例) get-height('header-pc') → 80
+//////////////////////////////////////////////
+@function get-height($_key) {
+  $_value: map.get($heights, $_key);
+
+  @if $_value ==null {
+    @error "Height key '#{$_key}' not found in $heights.";
+  }
+
+  @return $_value;
+}
+
+/* transition
+----------------------------------------------------------------- */
+// トランジション一覧マップ（一元管理）
+// 構造: $transitions: (key: value)
+// 実装の際は get-transition() を使用して値を取得
+//////////////////////////////////////////////
+$transitions: (
+  'slow': 0.6s,
+  'normal': 0.3s,
+  'fast': 0.2s,
+) !default;
+
+// get-transition トランジションの値を取得する
+// @param $key トランジションのキー名
+// @return トランジションの値（時間）
+//  例) get-transition('normal') → 0.3s
+//////////////////////////////////////////////
+@function get-transition($_key) {
+  $_value: map.get($transitions, $_key);
+
+  @if $_value ==null {
+    @error "Transition key '#{$_key}' not found in $transitions.";
+  }
+
+  @return $_value;
+}
+
+/* border radius
+----------------------------------------------------------------- */
+// 角丸サイズの定義
+// キー: サイズ名（ユーティリティやコンポーネントで使用する識別子）
+// 値:
+//   - 'default': メディアクエリを使用しない時のデフォルト値（sp-first/pc-first共通）
+//   - $breakpointsのキー名 : 該当のメディアクエリで値を設定
+// 重要: 'default' の次に「上書きしたい順序」でキーを定義すること
+// 単位なし => s(数値)
+//////////////////////////////////////////////
+$border-radiuses: (
+  'xs': (
+    'default': 4,
+    get-breakpoint-key('sp'): 4,
+  ),
+  's': (
+    'default': 8,
+    get-breakpoint-key('sp'): 8,
+  ),
+  'm': (
+    'default': 16,
+    get-breakpoint-key('sp'): 16,
+  ),
+  'l': (
+    'default': 20,
+    get-breakpoint-key('sp'): 20,
+  ),
+  'xl': (
+    'default': 40,
+    get-breakpoint-key('sp'): 40,
+  ),
+  'full': (
+    'default': 99999,
+    get-breakpoint-key('sp'): 99999,
+  ),
+) !default;
+
+// get-border-radius 角丸サイズのCSS変数を取得する
+// @param $size-key サイズキー名（$border-radiusesのキー）
+// @return 角丸サイズのCSS変数参照
+//  例) get-border-radius('md') → var(--border-radius-md)
+//////////////////////////////////////////////
+@function get-border-radius($_size-key) {
+  $_size-map: map.get($border-radiuses, $_size-key);
+
+  @if $_size-map == null {
+    @error "Border radius size key '#{$_size-key}' not found in $border-radiuses.";
+  }
+
+  @return var(--border-radius-#{$_size-key});
+}
+
+/* border width
+----------------------------------------------------------------- */
+// ボーダー幅の定義
+// キー: サイズ名（ユーティリティやコンポーネントで使用する識別子）
+// 値:
+//   - 'default': メディアクエリを使用しない時のデフォルト値（sp-first/pc-first共通）
+//   - $breakpointsのキー名 : 該当のメディアクエリで値を設定
+// 重要: 'default' の次に「上書きしたい順序」でキーを定義すること
+// 単位なし => s(数値)
+//////////////////////////////////////////////
+$border-width: (
+  'default': (
+    'default': 2,
+    get-breakpoint-key('sp'): 2,
+  ),
+) !default;
+
+// get-border-width ボーダー幅のCSS変数を取得する
+// @param $size-key サイズキー名（$border-widthのキー）
+// @return ボーダー幅のCSS変数参照
+//  例) get-border-width('normal') → var(--border-width-normal)
+//////////////////////////////////////////////
+@function get-border-width($_size-key) {
+  $_size-map: map.get($border-width, $_size-key);
+
+  @if $_size-map == null {
+    @error "Border width size key '#{$_size-key}' not found in $border-width.";
+  }
+
+  @return var(--border-width-#{$_size-key});
+}
+
+/* effects
+----------------------------------------------------------------- */
+// エフェクトキー一覧マップ（一元管理）
+// 構造: $effects: (type-key: (pattern-key, ...))
+// 実際のスタイル値は mixins/_effects.scss の set-effect() で管理
+// スタイルは 'default' 必須、任意で $breakpoints キーにより BP 別上書き可
+//////////////////////////////////////////////
+$effects: (
+  'dropshadow': (
+    'default',
+    'light',
+    'text',
+    'text-light',
+    'lg',
+    'sm',
+  ),
+) !default;
+
+/* z-index
+----------------------------------------------------------------- */
+// z-index一覧マップ（一元管理）
+// 構造: $z-indexes: (key: value)
+// 実装の際は get-z-index() を使用して値を取得
+//////////////////////////////////////////////
+$z-indexes: (
+  'base': 1,
+  'header': 200,
+  'pagetop': 100,
+  'modal': 1000,
+  'tooltip': 2000,
+  'loading': 9999
+) !default;
+
+// get-z-index z-indexの値を取得する
+// @param $key z-indexのキー名
+// @return z-indexの値（数値）
+//  例) get-z-index('header') → 100
+//////////////////////////////////////////////
+@function get-z-index($_key) {
+  $_value: map.get($z-indexes, $_key);
+
+  @if $_value ==null {
+    @error "Z-index key '#{$_key}' not found in $z-indexes.";
+  }
+
+  @return $_value;
+}

@@ -1,0 +1,39 @@
+@use '../../foundation/' as *;
+
+/******************************************************************
+ * ページ遷移時のアニメーション処理(クラス)
+ * - body.is_pageUnmount … 同一オリジン遷移直前（JS: features/pageUnmountOnLink.js）
+ ******************************************************************/
+/* 画面表示アニメーション
+----------------------------------------------------------------- */
+.has_pageInit {
+  $_this: &;
+  opacity: 0;
+  transition: opacity 0.45s 0.05s ease-in-out;
+
+  // body用
+  &.is_domLoaded {
+    opacity: 1;
+  }
+
+  @include no-js {
+    &#{$_this} {
+      opacity: 1;
+    }
+  }
+}
+
+// body内のコンテンツ用
+.is_domLoaded .has_pageInit {
+  opacity: 1;
+}
+
+/* 画面遷移時アニメーション
+----------------------------------------------------------------- */
+.has_pageUnmountOnLink {
+  transition: opacity 0.45s;
+}
+
+.is_unMount {
+  opacity: 0 !important;
+}

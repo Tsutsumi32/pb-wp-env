@@ -1,0 +1,35 @@
+# 依存関係
+node_modules
+npm-debug.log
+yarn-error.log
+
+# ビルド成果物
+htdocs/dist
+htdocs/build
+
+# Git関連
+.git
+.gitignore
+
+# IDE関連
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS関連
+.DS_Store
+Thumbs.db
+
+# Docker関連
+Dockerfile
+docker-compose.yml
+.dockerignore
+docker/db/data
+
+# その他
+*.log
+.env.local
+.env.*.local
+

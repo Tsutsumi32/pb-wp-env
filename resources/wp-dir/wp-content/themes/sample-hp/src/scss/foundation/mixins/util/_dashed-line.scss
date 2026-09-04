@@ -1,0 +1,96 @@
+@use 'sass:meta';
+@use 'sass:list';
+
+/******************************************************************
+* dashed-line　破線の線を設定する（4方向対応・複数辺の組み合わせ可）
+* @param $_width 線の太さ（デフォルト: 1px）
+* @param $_dash-length 線の長さ（デフォルト: 8px）
+* @param $_gap 間隔（デフォルト: 4px）
+* @param $_color 線の色（デフォルト: currentColor）
+* @param $_direction 線の方向（デフォルト: bottom）
+*   単一: top / right / bottom / left / all
+*   複数: top bottom / left right / (top, left) など
+*  例) @include dashed-line(2px, 8px, 4px, #000);
+*  例) @include dashed-line(1px, 8px, 4px, #000, all);
+*  例) @include dashed-line(1px, 8px, 4px, #000, top bottom);
+*******************************************************************/
+@mixin dashed-line(
+  $_width: 1px,
+  $_dash-length: 8px,
+  $_gap: 4px,
+  $_color: currentColor,
+  $_direction: bottom
+) {
+  $total-length: calc($_dash-length + $_gap);
+
+  $_gradient-h: repeating-linear-gradient(
+    to right,
+    $_color 0,
+    $_color #{$_dash-length},
+    transparent #{$_dash-length},
+    transparent #{$total-length}
+  );
+  $_gradient-v: repeating-linear-gradient(
+    to bottom,
+    $_color 0,
+    $_color #{$_dash-length},
+    transparent #{$_dash-length},
+    transparent #{$total-length}
+  );
+
+  $directions: $_direction;
+
+  @if $_direction == all {
+    $directions: top right bottom left;
+  } @else if meta.type-of($_direction) != list {
+    $directions: ($_direction,);
+  }
+
+  $background-images: ();
+  $background-sizes: ();
+  $background-positions: ();
+  $background-repeats: ();
+
+  @each $side in $directions {
+    @if $side == top or $side == bottom {
+      $background-images: list.append($background-images, $_gradient-h, comma);
+      $background-sizes: list.append($background-sizes, #{$total-length} $_width, comma);
+      $background-repeats: list.append($background-repeats, repeat-x, comma);
+
+      @if $side == top {
+        $background-positions: list.append($background-positions, left top, comma);
+      } @else {
+        $background-positions: list.append($background-positions, left bottom, comma);
+      }
+    } @else if $side == left or $side == right {
+      $background-images: list.append($background-images, $_gradient-v, comma);
+      $background-sizes: list.append($background-sizes, $_width #{$total-length}, comma);
+      $background-repeats: list.append($background-repeats, repeat-y, comma);
+
+      @if $side == left {
+        $background-positions: list.append($background-positions, left top, comma);
+      } @else {
+        $background-positions: list.append($background-positions, right top, comma);
+      }
+    }
+  }
+
+  @if list.length($background-images) > 0 {
+    background-image: $background-images;
+    background-size: $background-sizes;
+    background-position: $background-positions;
+    background-repeat: $background-repeats;
+  }
+
+  @each $side in $directions {
+    @if $side == top {
+      padding-top: $_width;
+    } @else if $side == bottom {
+      padding-bottom: $_width;
+    } @else if $side == left {
+      padding-left: $_width;
+    } @else if $side == right {
+      padding-right: $_width;
+    }
+  }
+}

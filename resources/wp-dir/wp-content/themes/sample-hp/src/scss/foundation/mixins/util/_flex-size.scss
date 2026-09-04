@@ -1,0 +1,13 @@
+/******************************************************************
+* flex-size　flex要素のサイズを計算する（均等割り）
+* @param $num 並べる個数
+* @param $gap 間の余白（rem, px）
+* @param $important オプション: '!important'を付与する場合に指定
+*  例) @include flexSize(3, 1rem);
+*******************************************************************/
+@mixin flex-size($_num, $_gap, $_important: '') {
+  width: calc((100% / $_num) - ($_gap * ($_num - 1) / $_num));
+  @if $_important == '!important' {
+    width: calc((100% / $_num) - ($_gap * ($_num - 1) / $_num)) !important;
+  }
+}

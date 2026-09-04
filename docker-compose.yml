@@ -1,0 +1,136 @@
+services:
+  db:
+    container_name: "${PROJECT_NAME}_db"
+    image: mysql:5.7
+    command:
+      - "--character-set-server=utf8"
+      - "--collation-server=utf8_unicode_ci"
+    ports:
+      - "${LOCAL_DB_PORT}:3306"
+    restart: unless-stopped
+    volumes:
+      - db_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    networks:
+      - br0
+
+  wordpress:
+    container_name: "${PROJECT_NAME}_${WP_CONTAINER}"
+    build:
+      context: "./docker/wordpress"
+      args:
+        HOST_UID: ${HOST_UID:-1000}
+        HOST_GID: ${HOST_GID:-1000}
+    depends_on:
+      - db
+    ports:
+      - "${LOCAL_SERVER_PORT}:80"
+    restart: unless-stopped
+    volumes:
+      # wordpressのイメージはvar/www/htmlが想定パスとなる
+      - ./resources:/var/www/html
+      - .env:/var/www/.env
+      - ./scripts/wp:/var/www/scripts/wp
+      - ./docker/wordpress/php.ini:/usr/local/etc/php/php.ini
+    environment:
+      - WORDPRESS_DB_NAME=${DB_DATABASE}
+      - WORDPRESS_DB_HOST=${DB_HOST}
+      - WORDPRESS_DB_USER=${DB_USERNAME}
+      - WORDPRESS_DB_PASSWORD=${DB_PASSWORD}
+      - WP_SUB_DIR=${WP_SUB_DIR}
+      - WP_THEME_NAME=${WP_THEME_NAME}
+      - WORDPRESS_CONFIG_EXTRA=define('WP_HOME','http://${LOCAL_ADDRESS}:${WP_CHAGE_PORT}'); define('WP_SITEURL','http://${LOCAL_ADDRESS}:${WP_CHAGE_PORT}/${WP_SUB_DIR}');
+      - WPMS_DISABLE_WP_MAIL_SMTP=${WPMS_DISABLE_WP_MAIL_SMTP:-true}
+    working_dir:
+      ${WP_DIR_PATH}
+    networks:
+      - br0
+
+  phpmyadmin:
+    container_name: "${PROJECT_NAME}_phpmyadmin"
+    image: phpmyadmin/phpmyadmin:latest
+    depends_on:
+      - db
+    ports:
+      - "${LOCAL_PHPMYADMIN_PORT}:80"
+    volumes:
+      - phpmyadmin_sessions:/sessions
+    environment:
+      PMA_ARBITRARY: 1
+      PMA_HOSTS: ${DB_HOST}
+      PMA_USER: ${DB_USERNAME}
+      PMA_PASSWORD: ${DB_PASSWORD}
+    networks:
+      - br0
+
+  mailhog:
+    container_name: "${PROJECT_NAME}_mailhog"
+    image: mailhog/mailhog:latest
+    ports:
+      - "${MAILHOG_UI_PORT}:8025"
+      - "${MAILHOG_SMTP_PORT}:1025"
+    networks:
+      - br0
+
+  frontend:
+    container_name: "${PROJECT_NAME}_${FRONT_CONTAINER}"
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile
+      args:
+        HOST_UID: ${HOST_UID:-1000}
+        HOST_GID: ${HOST_GID:-1000}
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    volumes:
+      # resources を bind mount（node_modules 含む）
+      # コンテナ内の npm install は ./resources/node_modules にそのまま反映される
+      - ./resources:/var/www/html
+      - .env:/var/www/.env
+    working_dir: /var/www/html
+    ports:
+      - "${FRONT_PORT}:${FRONT_PORT}"
+    # ネットワークを揃えてプロキシする
+    networks:
+      - br0
+    # コマンド（コンテナを停めない）
+    stdin_open: true
+    tty: true
+    command: /bin/bash
+
+  vnu:
+    container_name: "${PROJECT_NAME}_vnu"
+    image: ghcr.io/validator/validator:latest
+    ports:
+      - "${VNU_PORT}:8888"
+    networks:
+      - br0
+
+  playwright:
+    container_name: "${PROJECT_NAME}_playwright"
+    # package-lock の playwright と揃える（latest だとローカルキャッシュが古いまま残ることがある）
+    image: mcr.microsoft.com/playwright:v1.59.1-jammy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    profiles:
+      - capture
+    volumes:
+      - ./resources:/var/www/html
+      - ./_docs/capture:/capture-out
+    working_dir: /var/www/html
+    networks:
+      - br0
+    stdin_open: true
+    tty: true
+    command: /bin/bash
+
+volumes:
+  db_data:
+  phpmyadmin_sessions:
+
+networks:
+  br0:
+    driver: bridge

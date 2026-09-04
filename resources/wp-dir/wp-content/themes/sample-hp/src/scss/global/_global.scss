@@ -1,0 +1,140 @@
+@use '../foundation/' as *;
+@use 'sass:meta';
+
+/******************************************************************
+* 共通設定
+*******************************************************************/
+// スタイル計算 s()の設定
+@include style-settings-vars;
+// border-radius用CSS変数の生成
+@include border-radius-vars;
+// border-width用CSS変数の生成
+@include border-width-vars;
+// カラー用CSSの生成
+@if meta.variable-exists('colors') {
+  @include generate-color-themes;
+}
+// スクロールバー幅（JSで実測値に更新。JS無効時は$width-scrollbarがフォールバック）
+@include scrollbar-width-set;
+
+html {
+  @if meta.variable-exists('color-scroll-track') {
+    @include scrollbar();
+  }
+  // スムーススクロールは基本的にjsで制御(Jsのライブラリと相性が悪い場合があるため)
+  // scroll-behavior: smooth;
+  // 画面遷移を伴う場合の位置調整はscroll-padding-topで調整
+  scroll-padding-top: calc(s(get-height('header-pc')));
+
+  @include media(get-breakpoint-key('sp')) {
+    scroll-padding-top: calc(s(get-height('header-sp')));
+  }
+}
+
+body {
+  // デザインの改行方法によって変更する
+  // word-break: break-all;
+  word-break: break-word;
+  line-break: strict;
+  font-family: $base_font;
+  @if meta.variable-exists('color-body-bg') {
+    background-color: $color-body-bg;
+  }
+  @if meta.variable-exists('color-base-text') {
+    color: $color-base-text;
+  }
+  position: relative;
+
+  @include body-scroll-rock {
+    // body固定化した際にレイアウトシフトを防止
+    width: calc(100vw - get-scrollbar-width());
+  }
+}
+
+p,
+span,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+a {
+  // テキストの上下トリミング指定
+  //text-box: trim-both cap alphabetic;
+}
+
+::before,
+::after {
+  // pointer-events: none;
+}
+
+// picutreはスタイル上無視
+picture {
+  display: contents;
+}
+
+img {
+  display: block;
+  height: auto;
+  width: 100%;
+  object-fit: cover;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+}
+
+svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: contain;
+}
+
+textarea,
+dt,
+dd,
+button {
+  line-height: inherit;
+}
+
+address {
+  font-style: normal;
+}
+
+textarea {
+  resize: vertical;
+  overflow-y: auto;
+}
+
+a,
+span {
+  display: inline-block;
+}
+
+button {
+  display: inline-block;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+// テキスト選択時のスタイル
+@if meta.variable-exists('color-select-text') {
+  ::selection {
+    color: $color-select-text;
+    background-color: $color-select-bg;
+  }
+
+  ::-moz-selection {
+    color: $color-select-text;
+    background-color: $color-select-bg;
+  }
+}
+
+// フォーカス時のoutlineスタイル
+@if meta.variable-exists('color-focus-outline') {
+  :focus-visible {
+    outline: s(2) solid $color-focus-outline;
+  }
+}

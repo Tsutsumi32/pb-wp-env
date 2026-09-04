@@ -1,0 +1,44 @@
+@use '../../variables/variables' as *;
+@use '../../functions/style-settings' as *;
+
+/******************************************************************
+* hover判定
+*******************************************************************/
+/* hover 非hover
+----------------------------------------------------------------- */
+@mixin hover() {
+  //hover(PC)
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      @content;
+    }
+  }
+
+  //非hover(スマホ)
+  //透明化で統一する
+  @media (hover: none) and (pointer: coarse) {
+    &:active {
+      opacity: .7;
+    }
+  }
+}
+
+/* hoverのみ
+----------------------------------------------------------------- */
+@mixin hover-only() {
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      @content;
+    }
+  }
+}
+
+/* 非hover端末のactiveのみ
+----------------------------------------------------------------- */
+@mixin active-only {
+  @media (hover: none) and (pointer: coarse) {
+    &:active {
+      @content;
+    }
+  }
+}

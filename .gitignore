@@ -1,0 +1,76 @@
+.cursor/*
+!.cursor/design/
+#!.cursor/tmp/
+#!.cursor/figma-tokens/
+.claude/*
+CLAUDE.md
+_docs/_bookkmarklet/*
+_docs/_production-docs/*
+_docs/_settings/*
+_docs/capture/*
+!_docs/capture/README.md
+_docs/sheets/*
+
+
+#==============================
+# map除外
+#==============================
+# *css.map
+*js.map
+
+#==============================
+# sample-code
+#==============================
+.sample-code/*
+!.sample-code/.gitkeep
+
+#==============================
+# docker
+#==============================
+docker/db/
+docker/phpmyadmin/
+
+#==============================
+# WP
+#==============================
+.env
+/index.php
+readme.html
+license.txt
+.htaccess
+xmlrpc.php
+docker/phpmyadmin/
+/wp-*.php
+resources/wp-dir/*
+!resources/wp-dir/wp-content
+resources/wp-dir/wp-content/*
+!resources/wp-dir/wp-content/themes
+# 独自テーマ以外（WPデフォルトテーマ・Cocoon等）はリポジトリに含めない
+resources/wp-dir/wp-content/themes/*
+!resources/wp-dir/wp-content/themes/sample-hp/
+
+# 本番インポートデータのみ除外（sample / .dev / 画像 / README 等は管理対象）
+resources/wp-dir/wp-content/themes/**/data/**/posts.json
+resources/wp-dir/wp-content/themes/**/data/**/posts.csv
+
+#==============================
+# 不必要なフォルダ・ファイルを除外
+#==============================
+.vscode
+node_modules/
+vendor/
+*~
+*.bak
+.DS_Store
+.buildpath
+.project
+.settings
+*.tmproj
+.ide
+mix-manifest.json
+build/
+nbproject/
+.php-cs-fixer.cache
+docker-compose.override.yml
+.image-meta.json
+.htaccess

@@ -1,0 +1,115 @@
+@use '../../foundation/' as *;
+@use '../scope' as block-editor;
+
+/******************************************************************
+* custom-block - linkCard（リンクカードブロック）
+*******************************************************************/
+
+@include block-editor.scope {
+  .bl_linkCard {
+    display: flex;
+    gap: s(24);
+    align-items: center;
+    overflow: hidden;
+    padding-inline-end: s(24);
+    border-radius: s(8);
+    background-color: get-color('background', 'canvas');
+    color: inherit;
+    text-decoration: none;
+    transition: opacity get-transition('fast');
+
+    @include media(get-breakpoint-key('sp')) {
+      padding: s(12);
+      gap: s(18);
+    }
+
+    @include hover {
+      .bl_linkCard_title {
+        color: get-color('text', 'link');
+      }
+    }
+
+    &__empty {
+      display: block;
+      padding: s(24) s(32);
+      border: s(1) dashed get-color('border', 'default');
+    }
+
+    &_thumbWrap {
+      flex-shrink: 0;
+      aspect-ratio: 225 / 150;
+      width: s(225);
+      height: auto;
+      overflow: hidden;
+
+      @include media(get-breakpoint-key('sp')) {
+        width: s(120);
+      }
+    }
+
+    &_media {
+      display: block;
+      width: 100%;
+      height: 100%;
+      max-width: none;
+      object-fit: cover;
+    }
+
+    &_thumb {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background-color: get-color('background', 'toggle');
+      object-fit: cover;
+
+      &__empty {
+        display: block;
+      }
+    }
+
+    &_body {
+      display: flex;
+      flex: 1 1 auto;
+      flex-direction: column;
+      align-items: flex-start;
+      min-width: 0;
+    }
+
+    &_title {
+      margin: 0;
+      width: 100%;
+      word-break: break-word;
+      @include font(18, 27, 0, get-font-weight('sans', 'strong'));
+      color: get-color('text', 'base');
+
+      @include omission(3, s(18), calc(27 / 18));
+      transition: color get-transition('normal');
+
+      @include media(get-breakpoint-key('sp')) {
+        font-size: s(15);
+        @include omission(3, s(15), calc(27 / 18));
+      }
+    }
+
+    &_emptyMessage {
+      margin: 0;
+      @include font(14, 22, 0, get-font-weight('sans', 'medium'));
+      opacity: 0.7;
+    }
+  }
+}
+
+@include block-editor.admin-scope {
+  .bl_linkCard_media {
+    max-width: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ly_blockEditor,
+  .editor-styles-wrapper {
+    .bl_linkCard {
+      transition: none;
+    }
+  }
+}

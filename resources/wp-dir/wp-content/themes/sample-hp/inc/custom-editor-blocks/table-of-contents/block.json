@@ -1,0 +1,17 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "custom-block/table-of-contents",
+  "version": "1.0.0",
+  "title": "目次",
+  "category": "custom-block",
+  "icon": "list-view",
+  "description": "ページ内の見出し2からアンカーリンク付きの目次を生成します。",
+  "keywords": ["目次", "toc", "見出し"],
+  "textdomain": "custom-block",
+  "editorScript": "file:./editor.js",
+  "supports": {
+    "html": false,
+    "multiple": true
+  }
+}

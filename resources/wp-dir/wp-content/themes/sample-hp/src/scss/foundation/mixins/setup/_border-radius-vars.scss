@@ -1,0 +1,32 @@
+@use 'sass:map';
+@use '../../variables/variables' as *;
+@use '../../functions/style-settings' as *;
+@use '../judgement/media' as *;
+
+/******************************************************************
+* border-radius-vars border-radius用のCSS変数を生成する
+* $border-radiusesに基づいて、各ブレイクポイントで:rootにCSS変数を設定
+* @example
+*   @include border-radius-vars;
+*******************************************************************/
+@mixin border-radius-vars() {
+  :root {
+    @each $_size-key, $_sizes in $border-radiuses {
+      $_default-size: map.get($_sizes, 'default');
+
+      @if $_default-size == null {
+        @error "border-radius-vars(): '#{$_size-key}' に 'default' が定義されていません。";
+      }
+
+      --border-radius-#{$_size-key}: #{s($_default-size)};
+
+      @each $_breakpoint-key, $_size-value in $_sizes {
+        @if $_breakpoint-key != 'default' {
+          @include media($_breakpoint-key) {
+            --border-radius-#{$_size-key}: #{s($_size-value)};
+          }
+        }
+      }
+    }
+  }
+}

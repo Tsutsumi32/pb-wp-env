@@ -1,0 +1,39 @@
+@use '../../variables/variables' as *;
+/******************************************************************
+* background-image　背景画像を設定する
+* @param $_filename ファイル名
+* @param $_size background-size
+* @param $_type 拡張子 jpg or png(デフォルト)
+* @param $_position background-position
+* @param $_repeat background-repeat
+* @param $_important オプション: '!important'を付与する場合に指定
+*******************************************************************/
+@mixin background-image(
+  $_filename,
+  $_type: 'jpg',
+  $_size: cover,
+  $_position: center,
+  $_repeat: no-repeat,
+  $_important: ''
+) {
+  @if $_type == 'svg' {
+    background-image: url(#{get-image-path(svg)}#{$_filename}.#{$_type}) #{$_important};
+  } @else {
+    // デフォルト
+    background-image: url(#{get-image-path(compression)}#{$_filename}.#{$_type}) #{$_important};
+
+    // WebP対応ブラウザ
+    @supports (background-image: url(#{get-image-path(webp)}#{$_filename}.webp)) {
+      background-image: url(#{get-image-path(webp)}#{$_filename}.webp) #{$_important};
+    }
+
+    // AVIF対応ブラウザ
+    @supports (background-image: url(#{get-image-path(avif)}#{$_filename}.avif)) {
+      background-image: url(#{get-image-path(avif)}#{$_filename}.avif) #{$_important};
+    }
+  }
+
+  background-size: $_size;
+  background-position: $_position;
+  background-repeat: $_repeat;
+}

@@ -1,0 +1,25 @@
+@use '../../variables/variables' as *;
+@use '../../functions/height-string' as *;
+/******************************************************************
+* ommision　行数による末尾「...」省略
+* @param $_line:行数
+* @param $_font-size:フォントサイズ 単位あり
+* @param $_line-height:行間 (例 1.5)
+* @param $_height-set:heightに高さを設定するかどうか(設定する場合true)
+*******************************************************************/
+@mixin omission($_line, $_font-size, $_line-height, $_height-set: 0) {
+  @if $_height-set != 'true' {
+    max-height: height-string($_line, $_font-size, $_line-height);
+  } @else {
+    height: height-string($_line, $_font-size, $_line-height);
+  }
+  overflow: hidden;
+  @if $_line == 1 {
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  } @else {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: $_line;
+  }
+}

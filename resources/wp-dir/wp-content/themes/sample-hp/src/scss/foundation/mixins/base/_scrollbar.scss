@@ -1,0 +1,55 @@
+@use '../../variables/variables' as *;
+/******************************************************************
+* スクロールバーデザイン
+*******************************************************************/
+/* scrollbar
+* スクロールバーのスタイルを設定する（Firefox対応）
+* @param $_thumb-color スクロールバーのつまみの色（デフォルト: $color-scroll-handle）
+* @param $_track-color スクロールバーのトラックの色（デフォルト: $color-scroll-track）
+* @param $_type スクロールバーの幅タイプ（auto/thin/none、デフォルト: auto）
+*  例) @include scrollbar();
+*  例) @include scrollbar(red, blue, thin);
+----------------------------------------------------------------- */
+@mixin scrollbar(
+  $_thumb-color: $color-scroll-handle,
+  $_track-color: $color-scroll-track,
+  $_type: auto
+) {
+  scrollbar-width: $_type;
+  scrollbar-color: $_thumb-color $_track-color;
+}
+
+/* origin-scrollbar
+* Webkit系ブラウザ向けのスクロールバーのスタイルを設定する（Chrome/Safari対応）
+* @param $_thumb-color スクロールバーのつまみの色（デフォルト: $color-scroll-handle）
+* @param $_track-color スクロールバーのトラックの色（デフォルト: $color-scroll-track）
+*  例) @include origin-scrollbar();
+*  例) @include origin-scrollbar(#ff0000, #000000);
+----------------------------------------------------------------- */
+@mixin origin-scrollbar($_thumb-color: $color-scroll-handle, $_track-color: $color-scroll-track) {
+  &::-webkit-scrollbar {
+    width: s(8);
+    height: s(8);
+  }
+
+  &::-webkit-scrollbar-track {
+    background-color: $_track-color;
+    border-radius: s(4);
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: $_thumb-color;
+    border-radius: s(4);
+    transition: background-color 0.3s ease;
+  }
+}
+
+/* scrollbar_none
+* スクロールバーを非表示にする（Webkit系ブラウザ向け）
+*  例) @include scrollbar_none;
+----------------------------------------------------------------- */
+@mixin scrollbar_none {
+  &::-webkit-scrollbar {
+    width: 0;
+  }
+}

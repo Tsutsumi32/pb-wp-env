@@ -1,0 +1,191 @@
+/******************************************************************
+* reset
+*******************************************************************/
+a,
+abbr,
+address,
+aside,
+article,
+body,
+button,
+caption,
+cite,
+code,
+div,
+del,
+dl,
+dt,
+dd,
+em,
+font,
+form,
+figure,
+footer,
+fieldset,
+header,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+html,
+img,
+iframe,
+input,
+legend,
+li,
+label,
+main,
+nav,
+object,
+ol,
+option,
+optgroup,
+p,
+pre,
+q,
+s,
+sub,
+sup,
+select,
+span,
+section,
+tt,
+textarea,
+table,
+tbody,
+tfoot,
+thead,
+tr,
+th,
+td,
+ul,
+var,
+::before,
+::after {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+
+main {
+  display: block;
+}
+
+ol,
+ul {
+  list-style: none;
+}
+
+a {
+  background-color: transparent;
+  color: inherit;
+  text-decoration: none;
+}
+
+img {
+  border-style: none;
+}
+
+button,
+input,
+optgroup,
+select,
+textarea {
+  appearance: none;
+  background: transparent;
+  border-radius: 0;
+  vertical-align: middle;
+  -webkit-appearance: none;
+}
+
+input,
+textarea {
+  cursor: text;
+}
+
+[type='checkbox'] {
+  appearance: checkbox;
+  cursor: pointer;
+  -webkit-appearance: checkbox;
+}
+
+[type='radio'] {
+  appearance: radio;
+  cursor: pointer;
+  -webkit-appearance: radio;
+}
+
+[type='date']::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+}
+
+[type='time']::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+}
+
+button,
+select {
+  cursor: pointer;
+}
+
+label[for] {
+  cursor: pointer;
+}
+
+button:disabled,
+[type='button']:disabled,
+[type='reset']:disabled,
+[type='submit']:disabled {
+  cursor: default;
+}
+
+select:disabled {
+  opacity: inherit;
+}
+
+select::-ms-expand {
+  display: none;
+}
+
+[type='number']::-webkit-inner-spin-button,
+[type='number']::-webkit-outer-spin-button {
+  cursor: pointer;
+  height: auto;
+}
+
+th {
+  font-weight: bold;
+}
+
+optgroup {
+  font-weight: bold;
+}
+
+fieldset {
+  min-width: 0;
+}
+
+legend {
+  border: 0;
+  color: inherit;
+  display: table;
+  font-weight: bold;
+  max-width: 100%;
+  white-space: normal;
+}
+
+[hidden] {
+  display: none;
+}
+
+dd {
+  margin-left: 0;
+}

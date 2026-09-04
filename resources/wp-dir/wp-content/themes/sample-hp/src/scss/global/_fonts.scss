@@ -1,0 +1,38 @@
+@use '../foundation/' as *;
+@use 'sass:map';
+@use 'sass:meta';
+
+@each $_font-key, $_font-config in $font-configs {
+  $_family: map.get($_font-config, 'family');
+  $_files: map.get($_font-config, 'files');
+
+  @if $_files {
+    @if $_family == null or $_files == null {
+      @error "Invalid font config for '#{$_font-key}'";
+    }
+
+    @each $_file-config in $_files {
+      @if meta.type-of($_file-config) != 'map' {
+        @error "Font file config must be map for '#{$_font-key}'";
+      }
+
+      $_file: map.get($_file-config, 'file');
+      $_weight: map.get($_file-config, 'weight');
+      $_style: map.get($_file-config, 'style') or 'normal';
+      $_variable: map.get($_file-config, 'variable') or false;
+
+      @font-face {
+        font-family: $_family;
+        font-weight: $_weight;
+        font-style: $_style;
+        font-display: swap;
+
+        @if $_variable {
+          src: url('#{$font-path-base}#{$_file}') format('woff2 supports variations');
+        } @else {
+          src: url('#{$font-path-base}#{$_file}') format('woff2');
+        }
+      }
+    }
+  }
+}

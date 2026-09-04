@@ -1,0 +1,18 @@
+services:
+  db:
+    platform: linux/x86_64
+
+  wordpress:
+    platform: linux/x86_64
+
+  phpmyadmin:
+    platform: linux/x86_64
+
+  mailhog:
+    platform: linux/x86_64
+
+  frontend:
+    platform: linux/x86_64
+
+  vnu:
+    platform: linux/x86_64

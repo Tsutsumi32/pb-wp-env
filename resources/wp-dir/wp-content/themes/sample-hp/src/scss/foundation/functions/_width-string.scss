@@ -1,0 +1,10 @@
+/******************************************************************
+* width-string　行の高さを取得する
+* @param $num 文字数
+* @param $font_size フォントサイズ (単位あり)
+* @param $letter-spacing 文字間
+* 例) 30文字の横幅 サイズ16px 文字間0.03em (30, 16px, 0.03em);
+*******************************************************************/
+@function width-string($_num, $_font-size, $_letter-spacing) {
+  @return calc(($_font-size + $_letter-spacing) * $_num - $_letter-spacing);
+}

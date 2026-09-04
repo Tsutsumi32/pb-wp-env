@@ -1,0 +1,145 @@
+@use '../../foundation/' as *;
+@use '../scope' as block-editor;
+
+/******************************************************************
+* custom-block - tableOfContents（目次ブロック）
+*******************************************************************/
+
+@include block-editor.scope {
+  .bl_tableOfContents {
+    display: flex;
+    flex-direction: column;
+    gap: s(10);
+    padding: s(24) s(32);
+    border-radius: s(8);
+    background-color: get-color('background', 'canvas');
+    color: get-color('text', 'base');
+
+    @include media(get-breakpoint-key('sp')) {
+      padding: s(16) s(20);
+    }
+
+    &__empty {
+      border: s(1) dashed get-color('border', 'default');
+    }
+
+    &_header {
+      display: flex;
+      gap: s(10);
+      align-items: center;
+    }
+
+    &_title {
+      margin: 0;
+      @include font(20, 30, 0, get-font-weight('sans', 'strong'));
+      color: get-color('text', 'base');
+    }
+
+    &_contentsInner {
+      width: 100%;
+    }
+
+    &_emptyMessage {
+      margin: 0;
+      @include font(14, 22, 0, get-font-weight('sans', 'medium'));
+      opacity: 0.7;
+    }
+
+    &_list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    &_item {
+      margin: 0;
+      padding: s(10);
+      border-block-end: s(1) solid get-color('border', 'default');
+      background-color: get-color('background', 'canvas');
+
+      &:last-child {
+        border-block-end: none;
+      }
+    }
+
+    &_link {
+      display: block;
+      color: get-color('text', 'link');
+      text-decoration: none;
+      word-break: break-word;
+      @include font(16, 24, 0, get-font-weight('sans', 'normal'));
+      transition: opacity get-transition('fast');
+
+      @include media(get-breakpoint-key('sp')) {
+        font-size: s(15);
+      }
+
+      @include hover {
+        opacity: 0.7;
+      }
+    }
+  }
+}
+
+@include block-editor.admin-scope {
+  .bl_tableOfContents__editor {
+    display: flex;
+    flex-direction: column;
+    gap: s(10);
+    padding: s(24) s(32);
+    border: s(1) solid get-color('border', 'default');
+    border-radius: s(8);
+    background-color: get-color('background', 'toggle');
+    color: get-color('text', 'base');
+
+    .bl_tableOfContents_header {
+      display: flex;
+      gap: s(10);
+      align-items: center;
+    }
+
+    .bl_tableOfContents_title {
+      margin: 0;
+      padding-inline-start: s(12);
+      border-inline-start: s(3) solid get-color('text', 'accent');
+      @include font(20, 30, 0, get-font-weight('sans', 'strong'));
+      color: get-color('text', 'base');
+    }
+
+    .bl_tableOfContents_editorPreview {
+      display: flex;
+      flex-direction: column;
+      gap: s(8);
+      padding: s(12) s(16);
+      border-radius: s(4);
+      background-color: get-color('background', 'canvas');
+    }
+
+    .bl_tableOfContents_editorBar {
+      display: block;
+      width: 100%;
+      height: s(10);
+      border-radius: s(2);
+      background-color: get-color('border', 'default');
+
+      &__short {
+        width: 65%;
+      }
+    }
+
+    .bl_tableOfContents_editorNote {
+      margin: 0;
+      @include font(12, 18, 0, get-font-weight('sans', 'normal'));
+      color: get-color('text', 'sub');
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ly_blockEditor,
+  .editor-styles-wrapper {
+    .bl_tableOfContents_link {
+      transition: none;
+    }
+  }
+}

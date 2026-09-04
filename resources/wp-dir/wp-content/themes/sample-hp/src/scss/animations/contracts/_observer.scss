@@ -1,0 +1,74 @@
+@use '../../foundation/' as *;
+@use '../mixins/fade' as *;
+
+/******************************************************************
+ * IntersectionObserver（scrollObserver）連動アニメーション
+ * - scrollObserver.js が is_active を付与
+ * - has_observer_xxxx でアニメーション種別を選択
+ ******************************************************************/
+
+$observer-duration: 1.2s;
+$observer-ease: ease-out;
+$observer-offset: s(24);
+
+@mixin observer-motion-transition {
+  transition:
+    opacity $observer-duration $observer-ease,
+    visibility $observer-duration $observer-ease,
+    transform $observer-duration $observer-ease;
+}
+
+@mixin observer-active-visible {
+  &.is_active {
+    @include anim-fade-visible();
+    transform: none;
+  }
+}
+
+@mixin observer-reduced-motion {
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+  }
+}
+
+@include enable-js {
+  .has_observer_fade {
+    @include anim-fade-initial($observer-duration, $observer-ease);
+
+    &.is_active {
+      @include anim-fade-visible();
+    }
+
+    @include observer-reduced-motion;
+  }
+
+  .has_observer_fadeUp {
+    @include anim-fade-initial($observer-duration, $observer-ease);
+    @include observer-motion-transition;
+    transform: translateY($observer-offset);
+
+    @include observer-active-visible;
+    @include observer-reduced-motion;
+  }
+
+  .has_observer_fadeRight {
+    @include anim-fade-initial($observer-duration, $observer-ease);
+    @include observer-motion-transition;
+    transform: translateX($observer-offset);
+
+    @include observer-active-visible;
+    @include observer-reduced-motion;
+  }
+
+  .has_observer_fadeLeft {
+    @include anim-fade-initial($observer-duration, $observer-ease);
+    @include observer-motion-transition;
+    transform: translateX(calc(-1 * #{$observer-offset}));
+
+    @include observer-active-visible;
+    @include observer-reduced-motion;
+  }
+}

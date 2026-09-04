@@ -1,0 +1,26 @@
+{
+  "items": [
+    {
+      "assetUrl": "https://www.figma.com/api/mcp/asset/{uuid}",
+      "outputPath": "_origin/img_{pageName}_{meaning}.png",
+      "frameWidth": 436,
+      "frameHeight": 581,
+      "scale": 2,
+      "fill": {
+        "width": 202.64,
+        "height": 103.95,
+        "left": -25.47,
+        "top": 0
+      }
+    },
+    {
+      "assetUrl": "https://www.figma.com/api/mcp/asset/{uuid}",
+      "outputPath": "_origin/img_{pageName}_{meaning}.png",
+      "frameWidth": 300,
+      "frameHeight": 400,
+      "scale": 4,
+      "fillMode": "object-cover-center",
+      "_comment": "SP デザインフレームから書き出す場合は scale: 4（PC は 2）"
+    }
+  ]
+}

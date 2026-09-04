@@ -1,0 +1,17 @@
+[
+  {
+    "_external_id": "news-json-001",
+    "post_title": "JSONインポートサンプル",
+    "post_status": "publish",
+    "post_date": "2026-06-01 10:00:00",
+    "_thumbnail": "../sample-img/sample-thumb.jpg",
+    "taxonomies": {
+      "news-category": "blog"
+    },
+    "acf": {
+      "news_taxonomy": "blog",
+      "news_image": "../sample-img/sample-thumb.jpg",
+      "news_content": "テーマ内 JSON から投入されたサンプル記事です。"
+    }
+  }
+]

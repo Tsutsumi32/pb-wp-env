@@ -1,0 +1,108 @@
+@use 'sass:map';
+@use 'sass:list';
+@use '../foundation' as *;
+@use '../foundation/functions/strip-unit' as *;
+
+/******************************************************************
+* helper
+*******************************************************************/
+/* text-align
+----------------------------------------------------------------- */
+.hp_tac {
+  text-align: center !important;
+}
+
+/* display - 基本クラス
+----------------------------------------------------------------- */
+.hp_block {
+  display: block !important;
+}
+
+.hp_hidden {
+  display: none !important;
+}
+
+.hp_visuallyHidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* hidden ブレイクポイントベースの非表示クラス
+----------------------------------------------------------------- */
+/// ブレイクポイントのキー名を使って、非表示にする領域を範囲指定で指定
+/// クラス名の形式:
+///   .hidden_default_{breakpoint-key} → デフォルト領域から指定ブレイクポイントまで非表示
+///   .hidden_{breakpoint-key}_        → 指定ブレイクポイント以降を非表示
+///   .hidden_{breakpoint-key1}_{breakpoint-key2} → 2つのブレイクポイント間で非表示
+///
+/// 使用例:
+/// sp-firstの場合:
+///   .hidden_default_tab → 0~tab未満まで非表示（sp時のみ非表示）
+///   .hidden_tab_        → tab以上を非表示（tab以上で非表示、sp時は表示）
+///   .hidden_tab_pc      → tab以上、pc未満で非表示
+///
+/// pc-firstの場合:
+///   .hidden_default_tab → 最大~tabまで非表示（pc時のみ非表示）
+///   .hidden_pc_         → pc未満を非表示（pc未満で非表示、pc時は表示）
+///   .hidden_pc_tab      → pc未満、tab以上で非表示
+// デフォルト領域から指定ブレイクポイントまでの非表示クラスを生成
+@each $_breakpoint-key in map.keys($breakpoints) {
+  .hp_hidden_default_#{$_breakpoint-key} {
+    @if $media-query-strategy == 'sp-first' {
+      // SPファースト: デフォルト領域（最初のブレイクポイント未満）から指定ブレイクポイントまで非表示
+      $_break-value: get-breakpoint($_breakpoint-key);
+      @media screen and (width < strip-unit($_break-value, 1px)) {
+        display: none !important;
+      }
+    } @else {
+      // PCファースト: デフォルト領域（最後のブレイクポイント以上）から指定ブレイクポイントまで非表示
+      $_break-value: get-breakpoint($_breakpoint-key);
+      @media screen and (strip-unit($_break-value, 1px) <= width) {
+        display: none !important;
+      }
+    }
+  }
+}
+
+// 指定ブレイクポイント以降を非表示にするクラスを生成
+@each $_breakpoint-key in map.keys($breakpoints) {
+  .hp_hidden_#{$_breakpoint-key}_ {
+    @if $media-query-strategy == 'sp-first' {
+      // SPファースト: 指定ブレイクポイント以上を非表示
+      $_break-value: get-breakpoint($_breakpoint-key);
+      @media screen and (strip-unit($_break-value, 1px) <= width) {
+        display: none !important;
+      }
+    } @else {
+      // PCファースト: 指定ブレイクポイント未満を非表示
+      $_break-value: get-breakpoint($_breakpoint-key);
+      @media screen and (width < strip-unit($_break-value, 1px)) {
+        display: none !important;
+      }
+    }
+  }
+}
+
+// 範囲指定の非表示クラスを生成（2つのブレイクポイントの組み合わせ）
+$_bp-keys-list: map.keys($breakpoints);
+$_keys-length: list.length($_bp-keys-list);
+@for $i from 1 through $_keys-length {
+  $_key1: list.nth($_bp-keys-list, $i);
+  @if $i < $_keys-length {
+    @for $j from ($i + 1) through $_keys-length {
+      $_key2: list.nth($_bp-keys-list, $j);
+      .hp_hidden_#{$_key1}_#{$_key2} {
+        @include media($_key1, $_key2) {
+          display: none !important;
+        }
+      }
+    }
+  }
+}

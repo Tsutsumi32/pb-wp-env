@@ -1,0 +1,18 @@
+@use './strip-unit' as *;
+
+/******************************************************************
+* get-viewport-unit　スクロールバー除外幅の等分単位を返す
+* JS が :root の --viewport-unit にセットする値（画面幅の1%）を参照する
+* @param $_scale 倍率（単位無し。省略時 1 = 1%、100 = 全幅）
+*  例) width: get-viewport-unit(100);
+*  例) right: calc((get-viewport-unit(100) - s(1080)) / 2);
+*******************************************************************/
+@function get-viewport-unit($_scale: 1) {
+  $_scale: strip-unit($_scale);
+
+  @if $_scale == 1 {
+    @return var(--viewport-unit);
+  }
+
+  @return calc(var(--viewport-unit) * #{$_scale});
+}

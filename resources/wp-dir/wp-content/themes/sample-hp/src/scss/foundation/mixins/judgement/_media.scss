@@ -1,0 +1,183 @@
+@use 'sass:meta';
+@use 'sass:map';
+@use '../../functions/strip-unit' as *;
+@use '../../variables/variables' as *;
+
+/******************************************************************
+* メディアクエリ
+* $media-query-strategy で 'sp-first' または 'pc-first' を切り替え可能
+*******************************************************************/
+/* 連番ベースの汎用メディアクエリ
+* $key: ブレイクポイントのキー（文字列）または具体的な値（数値）
+* $max-key: オプション。範囲指定の場合の最大キー（文字列）または具体的な値（数値）
+* variablesで設定した順序に応じて適用
+*
+* sp-first: 1が最小、数が大きくなるほど画面サイズが大きい
+*
+* pc-first: 1が最大、数が大きくなるほど画面サイズが小さい
+*   注意: 範囲指定の場合、引数の順序は任意（実際の値の大小関係で自動判定）
+*
+* sp-first pc-first関係なく常に「以上」「未満」の指定
+*
+* 使用例（sp-first）:
+*   @include media('tab') { ... }        // tab以上
+*   @include media('pc') { ... }         // pc以上
+*   @include media('tab', 'pc') { ... }  // tab以上、pc未満（範囲指定）
+*   @include media('default', 'tab') { ... }  // tab未満（デフォルトの指定のない領域からtabまで）
+*   @include media(768px) { ... }        // 768px以上（具体的な値を直接指定）
+*   @include media(768px, 1024px) { ... }  // 768px以上、1024px未満（具体的な値での範囲指定）
+*
+* 使用例（pc-first）:
+*   @include media('pc') { ... }         // pc未満
+*   @include media('pcLL', 'pc') { ... }  // pcLL未満、pc以上（範囲指定）
+*   @include media('default', 'tab') { ... }  // tab以上（tab以上の画面サイズに適用）
+*   @include media(768px) { ... }        // 768px未満（具体的な値を直接指定）
+*   @include media(768px, 1024px) { ... }  // 768px以上、1024px未満（具体的な値での範囲指定）
+*
+* variablesで定義した文字列キーに自動的に依存します
+* 数値が渡された場合は、その値を直接使用します
+----------------------------------------------------------------- */
+@mixin media($_key, $_max-key: null) {
+  // 型チェック（文字列または数値）
+  @if meta.type-of($_key) != string and meta.type-of($_key) != number {
+    @error "breakpoint key must be a string or number, got #{meta.type-of($_key)}";
+  }
+  @if $_max-key != null and meta.type-of($_max-key) != string and meta.type-of($_max-key) != number
+  {
+    @error "breakpoint max-key must be a string or number, got #{meta.type-of($_max-key)}";
+  }
+
+  // キーがマップに存在するかチェック（'default'は特別なキーとして許可、数値の場合はスキップ）
+  @if meta.type-of($_key) == string and $_key != 'default' and not map.has-key($breakpoints, $_key)
+  {
+    @error "breakpoint key '#{$_key}' not found in $breakpoints map. Available keys: #{map.keys($breakpoints)}";
+  }
+  @if $_max-key !=
+    null and
+    meta.type-of($_max-key) ==
+    string and
+    $_max-key !=
+    'default' and not
+    map.has-key($breakpoints, $_max-key)
+  {
+    @error "breakpoint max-key '#{$_max-key}' not found in $breakpoints map. Available keys: #{map.keys($breakpoints)}";
+  }
+
+  // ブレイクポイント値を取得（variablesで設定された順序に従う）
+  // 'default'の場合は値を取得しない
+  // 数値の場合はそのまま使用
+  $_break-value: null;
+  @if meta.type-of($_key) == number {
+    $_break-value: $_key;
+  } @else if $_key != 'default' {
+    $_break-value: get-breakpoint($_key);
+  }
+
+  // 範囲指定の場合
+  @if $_max-key != null {
+    // 'default'が含まれている場合の特別な処理
+    @if (meta.type-of($_key) == string and $_key == 'default') or
+      (meta.type-of($_max-key) == string and $_max-key == 'default')
+    {
+      // 'default'でない方のキーまたは値を取得
+      $_target-value: null;
+      @if meta.type-of($_key) == string and $_key == 'default' {
+        @if meta.type-of($_max-key) == number {
+          $_target-value: $_max-key;
+        } @else {
+          $_target-value: get-breakpoint($_max-key);
+        }
+      } @else {
+        @if meta.type-of($_key) == number {
+          $_target-value: $_key;
+        } @else {
+          $_target-value: get-breakpoint($_key);
+        }
+      }
+
+      @if $media-query-strategy == 'sp-first' {
+        // sp-first: media('default', 'tab') => tab未満
+        @media screen and (width < strip-unit($_target-value, 1px)) {
+          @content;
+        }
+      } @else {
+        // pc-first: media('default', 'tab') => tab以上
+        @media screen and (strip-unit($_target-value, 1px) <= width) {
+          @content;
+        }
+      }
+    } @else {
+      // 通常の範囲指定
+      // $_max-keyの値を取得（数値の場合はそのまま使用）
+      $_max-break-value: null;
+      @if meta.type-of($_max-key) == number {
+        $_max-break-value: $_max-key;
+      } @else {
+        $_max-break-value: get-breakpoint($_max-key);
+      }
+
+      // 範囲指定は常に「以上」と「未満」で指定（sp-first/pc-firstに関係なく同じ物理的な範囲）
+      // ただし、sp-firstとpc-firstで変数の順序が逆なので、実際の値の大小関係を確認
+      $_min-value: null;
+      $_max-value: null;
+      @if strip-unit($_break-value, 1px) < strip-unit($_max-break-value, 1px) {
+        $_min-value: $_break-value;
+        $_max-value: $_max-break-value;
+      } @else {
+        $_min-value: $_max-break-value;
+        $_max-value: $_break-value;
+      }
+
+      @media screen and (strip-unit($_min-value, 1px) <= width < strip-unit($_max-value, 1px)) {
+        @content;
+      }
+    }
+  } @else {
+    // 単一指定の場合
+    @if $media-query-strategy == 'sp-first' {
+      // SPファースト: breakpoint-{key}以上
+      @media screen and (strip-unit($_break-value, 1px) <= width) {
+        @content;
+      }
+    } @else {
+      // PCファースト: breakpoint-{key}未満
+      @media screen and (width < strip-unit($_break-value, 1px)) {
+        @content;
+      }
+    }
+  }
+}
+
+/* 高さメディアクエリ
+$break $break以上の高さで適用
+----------------------------------------------------------------- */
+@mixin height-media-more($_break) {
+  @media screen and ($_break <= height) {
+    @content;
+  }
+}
+
+/* 高さメディアクエリ
+$break $break以下の高さで適用
+----------------------------------------------------------------- */
+@mixin height-media-less($_break) {
+  @media screen and ($_break >= height) {
+    @content;
+  }
+}
+
+/* 印刷時
+----------------------------------------------------------------- */
+@mixin print {
+  @media print {
+    @content;
+  }
+}
+
+/* アニメーション制御設定　ay11対応
+----------------------------------------------------------------- */
+@mixin noAnim {
+  @media (prefers-reduced-motion: reduce) {
+    @content;
+  }
+}

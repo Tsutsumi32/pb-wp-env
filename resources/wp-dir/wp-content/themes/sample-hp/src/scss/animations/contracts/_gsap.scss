@@ -1,0 +1,153 @@
+@use '../../foundation/' as *;
+
+/******************************************************************
+ * GSAP関連の共通処理　契機スタイル
+ ******************************************************************/
+/* smoothScroll
+/* rootを起点として、その中のwrapper、contentに対して適用する
+ ----------------------------------------------------------------- */
+@include enable-js {
+  .has_gsap_smooth_root.__page {
+    .has_gsap_smooth_wrapper {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+  }
+
+  .has_gsap_smooth_root.__content {
+    .has_gsap_smooth_wrapper {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .has_gsap_smooth_root.__page,
+    .has_gsap_smooth_root.__content {
+      .has_gsap_smooth_wrapper {
+        position: static;
+        height: auto;
+        overflow: visible;
+      }
+    }
+  }
+}
+
+/* pin アニメーション
+/* pinアニメーションは基本的に以下のDOM構造で実装する
+/* trigger > pin > target > 要素
+/* trigger：アニメーションのタイミングや範囲を管理(js側のtriggerに一致)
+/* pin：pinで固定するフレーム(js側のpinに一致)
+/* target：実際にアニメーションを付与するフレーム(js側のtargetに一致)
+/* 要素：中身の要素
+----------------------------------------------------------------- */
+@include enable-js {
+  /* pinアニメ共通
+  ----------------------------------------------------------------- */
+  // trigger
+  // アニメーションのタイミング・範囲制御
+  // pinアニメのtrigger共通
+  //////////////////////////////////////////////
+  .has_gsap_pin_trigger {
+    position: relative;
+  }
+
+  // pin
+  // 固定フレーム
+  // pinアニメのpinフレーム共通
+  //////////////////////////////////////////////
+  .has_gsap_pin {
+    position: relative;
+    // pinするため高さを100dvhに固定する
+    height: 100dvh;
+    // 画面幅から出るヨコフレームを切り取る
+    overflow: hidden;
+
+    // DOM移動などで枠外表示が必要なケース用
+    &.__allowOverflow {
+      overflow: visible;
+    }
+  }
+
+  /* 横スクロールモーション
+  ----------------------------------------------------------------- */
+  // target
+  // 実際のアニメ対象フレーム
+  // pinアニメ アニメ毎に異なる
+  //////////////////////////////////////////////
+  .has_gsap_hscroll_target {
+    height: 100%;
+    // 各セクションを横にならべる
+    display: flex;
+    // 幅を中身の要素の分広げる
+    width: max-content;
+  }
+
+  // section
+  // 要素
+  //////////////////////////////////////////////
+  .has_gsap_hscroll_section {
+    // 100vwでなくてもOK
+    width: 100vw;
+    height: 100%;
+
+    // 上下中央配置
+    display: grid;
+    place-items: center;
+
+    // セクションのpaddingやmarginの打ち消し
+    padding-block: 0 !important;
+    margin-block: 0 !important;
+  }
+
+  /* カードスタック(sticky風モーション)
+  ----------------------------------------------------------------- */
+  // cardStack: 重ねるカード（共通）
+  // - frame（.has_gsap_cardStack_frame）の位置・サイズはページ SCSS 側で定義
+  // - .has_gsap_cardStack_item / data-gsap-card-stack-item と appendGsapCardStack で利用
+  .has_gsap_cardStack_item {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transform-origin: top;
+
+    @include media(get-breakpoint-key('sp')) {
+      margin-top: 0 !important;
+    }
+  }
+
+  /* DOM移動（Flip）
+  ----------------------------------------------------------------- */
+  // 実装時の前提:
+  // - 位置・サイズの基準は origin / target ラッパーで持つ
+  // - 可動DOM（.has_gsap_domMove_node）は1つだけ特定できる構造にする
+  // - render_img() のように直 img を触りづらい場合は node ラッパーを1階層用意する
+  // - Flip中にDOMを付け替えても、寸法が崩れないよう node は常にラッパーfillで運用する
+  //
+  // 推奨DOM:
+  // .has_gsap_domMove_origin
+  //   └ .has_gsap_domMove_node
+  //       └ picture > img（or 可動DOM）
+  // .has_gsap_domMove_target
+  .has_gsap_domMove_node {
+    width: 100%;
+    height: 100%;
+    display: block;
+    position: relative;
+
+    picture,
+    img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+}

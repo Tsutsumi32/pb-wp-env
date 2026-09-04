@@ -1,0 +1,10 @@
+/************************************************************
+/*  initpage - ページファイル用の初期設定
+/*  各ページファイルで @use './initpage' as *; で使用
+/*  utils と Sass組み込みモジュール（map, meta, list）を提供
+/*  共通スタイル（global, helpers, header, footer, layouts）も読み込み
+************************************************************/
+@forward '../foundation/';
+@forward 'sass:map';
+@forward 'sass:meta';
+@forward 'sass:list';

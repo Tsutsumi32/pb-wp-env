@@ -1,0 +1,66 @@
+@use './initpage' as *;
+
+/******************************************************************
+* page - error
+*******************************************************************/
+.un_wrap {
+  padding-block: s(get-height('header-pc') + 140);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  @include media(get-breakpoint-key('sp')) {
+    padding-block: s(get-height('header-sp') + 100);
+  }
+}
+
+.un_title {
+  font-size: s(30);
+  line-height: 1.4;
+
+  @include media(get-breakpoint-key('sp')) {
+    font-size: s(21);
+  }
+}
+
+.un_message {
+  margin-top: s(56);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: s(40);
+}
+
+.un_text {
+  font-size: s(16);
+  line-height: 1.6;
+}
+
+.un_link {
+  display: block;
+  width: fit-content;
+  margin-inline: auto;
+  padding: s(8) s(24);
+  border-bottom: s(1) solid;
+}
+
+.un_status {
+  font-size: s(90);
+  line-height: 1;
+  font-weight: bold;
+
+  @include media(get-breakpoint-key('sp')) {
+    font-size: s(80);
+  }
+}
+
+.un_statusLabel {
+  font-size: s(40);
+  line-height: 1;
+  font-weight: bold;
+  margin-top: s(16);
+
+  @include media(get-breakpoint-key('sp')) {
+    font-size: s(34);
+  }
+}

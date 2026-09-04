@@ -1,0 +1,9 @@
+/******************************************************************
+* get-scrollbar-width　スクロールバー幅を返す
+* JS が :root の --scrollbar-width にセットする値を参照する
+* JS無効時は scrollbar-width-set のフォールバック値が使われる
+*  例) width: calc(100vw - get-scrollbar-width());
+*******************************************************************/
+@function get-scrollbar-width() {
+  @return var(--scrollbar-width);
+}

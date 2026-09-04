@@ -1,0 +1,39 @@
+{
+  "$schema": "https://schemas.wp.org/trunk/block.json",
+  "apiVersion": 3,
+  "name": "custom-block/link-card",
+  "version": "1.0.0",
+  "title": "リンクカード",
+  "category": "custom-block",
+  "icon": "admin-links",
+  "description": "サムネイル・タイトル・URLを設定してリンクカードを表示します。",
+  "keywords": ["リンク", "カード", "link"],
+  "textdomain": "custom-block",
+  "editorScript": "file:./editor.js",
+  "attributes": {
+    "imageId": {
+      "type": "number",
+      "default": 0
+    },
+    "imageUrl": {
+      "type": "string",
+      "default": ""
+    },
+    "imageAlt": {
+      "type": "string",
+      "default": ""
+    },
+    "title": {
+      "type": "string",
+      "default": ""
+    },
+    "url": {
+      "type": "string",
+      "default": ""
+    }
+  },
+  "supports": {
+    "html": false,
+    "multiple": true
+  }
+}

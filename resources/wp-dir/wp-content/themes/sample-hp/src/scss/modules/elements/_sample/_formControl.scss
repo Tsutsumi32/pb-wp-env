@@ -1,0 +1,486 @@
+@use '../../foundation/' as *;
+
+// /******************************************************************
+// * element - form controls
+// * お問い合わせフォーム等で使用するコントロール部品（input / textarea /
+// * select / radio / checkbox）をここに集約する。
+// * 行ラッパー（bl_form_inputWrap）側の構造・余白は _form.scss が担当し、
+// * このファイルはコントロール単体の見た目（枠線・サイズ・タイポなど）を扱う。
+// *******************************************************************/
+
+/// ブラウザ補完（autofill）のデフォルト背景色をフォームの面色に合わせる
+@mixin neutralize-autofill($bg-color, $text-color) {
+  &:-webkit-autofill,
+  &:-webkit-autofill:hover,
+  &:-webkit-autofill:focus,
+  &:-webkit-autofill:active,
+  &:-internal-autofill-selected {
+    -webkit-box-shadow: 0 0 0 1000px #{$bg-color} inset !important;
+    box-shadow: 0 0 0 1000px #{$bg-color} inset !important;
+    -webkit-text-fill-color: #{$text-color} !important;
+    caret-color: #{$text-color};
+    transition: background-color 99999s ease-out 0s;
+  }
+}
+
+.el_input {
+  @include neutralize-autofill(
+    get-color('background', 'canvas'),
+    get-color('text', 'base')
+  );
+}
+
+// /******************************************************************
+// * el_input（テキスト系 input / textarea 共通）
+// * - <input type="text|email|tel|...">
+// * - <textarea class="el_input el_input__area">
+// *******************************************************************/
+// .el_input {
+//   @include font(22, 22, 0, get-font-weight('noto-sans-jp', 'medium'));
+//   box-sizing: border-box;
+//   width: 100%;
+//   min-height: s(62);
+//   padding: s(12) s(24);
+//   background-color: get-color('background', 'canvas');
+//   border: s(1) solid get-color-palette('neutral-04');
+//   border-radius: s(5);
+//   transition:
+//     border-color get-transition('fast'),
+//     box-shadow get-transition('fast');
+
+//   @include media(get-breakpoint-key('sp')) {
+//     font-size: s(14);
+//     padding-inline: s(21);
+//     min-height: s(42);
+//   }
+
+//   &::placeholder {
+//     color: get-color('icon-decoration', 'muted-2');
+//   }
+
+//   &:focus-visible {
+//     outline: none;
+//     border-color: get-color('text', 'base');
+//     box-shadow: 0 0 0 s(1) get-color('text', 'base');
+//   }
+
+//   &__area {
+//     display: block;
+//     min-height: s(400);
+//     resize: vertical;
+
+//     @include media(get-breakpoint-key('sp')) {
+//       min-height: s(222);
+//     }
+//   }
+// }
+
+// /******************************************************************
+// * el_select
+// * - <select class="el_select">
+// * - Chrome の新仕様 appearance: base-select を活用したカスタムセレクト。
+// *   未対応ブラウザでは標準UIにフォールバックする。
+// *******************************************************************/
+// @mixin pickerStyle {
+//   appearance: base-select;
+//   &::picker(select) {
+//     /* アニメーションも設定できる */
+//     // transition: scale 0.2s;
+
+//     @include hover-only {
+//       // scale: 1.02;
+//     }
+//   }
+
+//   &::picker-icon {
+//     content: "";
+//     width: s(20);
+//     height: s(17);
+//     position: relative;
+//     left: s(-20);
+
+//     @include media(get-breakpoint-key('sp')) {
+//       width: s(15);
+//       height: s(12);
+//       left: s(-12);
+//     }
+//   }
+
+//   option {
+//     padding-block: s(10);
+//     padding-inline: s(10);
+//     transition:
+//       padding get-transition('fast'),
+//       background-color get-transition('fast');
+
+//     &::checkmark {
+//       display: none;
+//     }
+
+//     &:checked {
+//       // background-color: get-color-palette('neutral-05');
+//       // color: get-color-palette('neutral-02');
+//       pointer-events: none;
+//     }
+
+//     &:hover {
+//       // background-color: get-color-palette('neutral-05');
+//       padding-left: s(16);
+//     }
+//   }
+// }
+
+// .el_select {
+//   @include font(17, 17, 0, get-font-weight('noto-sans-jp', 'medium'));
+//   @include pickerStyle;
+//   appearance: base-select;
+//   border: s(1) solid get-color-palette('neutral-04');
+//   height: s(48);
+//   width: 100%;
+//   display: flex;
+//   align-items: center;
+//   padding-left: s(14);
+
+//   @include media(get-breakpoint-key('sp')) {
+//     height: s(38);
+//     font-size: s(14);
+//   }
+// }
+
+// .el_select2 {
+//   @include font(17, 17, 0, get-font-weight('noto-sans-jp', 'medium'));
+//   @include pickerStyle;
+//   appearance: base-select;
+//   border: s(1) solid rgba(get-color-palette('neutral-04'), 0.6);
+//   background-color: get-color-palette('neutral-02');
+//   border-radius: s(5);
+//   min-height: s(62);
+//   width: 100%;
+//   display: flex;
+//   align-items: center;
+//   padding-left: s(14);
+
+//   @include media(get-breakpoint-key('sp')) {
+//     font-size: s(14);
+//     min-height: s(42);
+//     padding-block: s(12);
+//   }
+
+//   &::picker-icon {
+//     @include background-image('icon_angle_bottom_gray', 'svg', contain);
+//     width: s(11);
+//     height: s(7);
+//     background-color: transparent !important;
+//     position: relative;
+//     clip-path: unset;
+//     left: s(-15);
+//   }
+
+//   // data-feature="selectActiveState": value 空のときは is_active なし
+//   &:not(.is_active) {
+//     color: get-color-palette('neutral-06');
+//   }
+// }
+
+// /******************************************************************
+// * el_radio（ラジオボタン）
+// *******************************************************************/
+// .el_radio {
+//   $_this: &;
+//   display: flex;
+//   flex-direction: column;
+//   gap: s(12);
+//   padding-left: s(21 + 16);
+//   position: relative;
+
+//   @include media(get-breakpoint-key('sp')) {
+//     gap: s(7);
+//     padding-left: s(14 + 7);
+//   }
+
+//   &.__white {
+//     #{$_this}_label {
+//       color: get-color-palette('neutral-02');
+//     }
+//     &::before {
+//       border-color: get-color-palette('neutral-02');
+//     }
+//     &::after {
+//       background-color: get-color-palette('neutral-02');
+//     }
+//   }
+
+//   input {
+//     display: none;
+//   }
+
+//   &::before,
+//   &::after {
+//     content: '';
+//     display: block;
+//     border-radius: 100vh;
+//     position: absolute;
+//   }
+
+//   &::before {
+//     border: s(2) solid get-color-palette('neutral-04');
+//     top: 50%;
+//     left: 0;
+//     transform: translateY(-50%);
+//     width: s(21);
+//     height: s(21);
+
+//     @include media(get-breakpoint-key('sp')) {
+//       width: s(14);
+//       height: s(14);
+//     }
+//   }
+//   &::after {
+//     background-color: get-color-palette('neutral-01');
+//     top: 50%;
+//     left: s(5);
+//     transform: translateY(-50%);
+//     width: s(11);
+//     height: s(11);
+//     opacity: 0;
+//     transition: opacity get-transition('normal');
+
+//     @include media(get-breakpoint-key('sp')) {
+//       width: s(7.5);
+//       height: s(7.5);
+//       left: s(3.2);
+//     }
+//   }
+
+//   &:has(input:checked) {
+//     &::after {
+//       opacity: 1;
+//     }
+//   }
+
+//   &_label {
+//     @include font(22, 22, 0, get-font-weight('noto-sans-jp', 'strong'));
+//     cursor: pointer;
+
+//     @include media(get-breakpoint-key('sp')) {
+//       font-size: s(14);
+//     }
+//   }
+// }
+
+// /******************************************************************
+// * el_checkbox（チェックボックス）
+// *******************************************************************/
+// .el_checkbox {
+//   $_this: &;
+//   display: flex;
+//   flex-direction: column;
+//   gap: s(12);
+//   padding-left: s(21 + 16);
+//   position: relative;
+
+//   @include media(get-breakpoint-key('sp')) {
+//     gap: s(7);
+//     padding-left: s(14 + 7);
+//   }
+
+//   &.__white {
+//     #{$_this}_label {
+//       color: get-color-palette('neutral-02');
+//     }
+//     &::before {
+//       border-color: get-color-palette('neutral-02');
+//     }
+//     &::after {
+//       background-color: get-color-palette('neutral-02');
+//     }
+//   }
+
+//   input {
+//     display: none;
+//   }
+
+//   &::before,
+//   &::after {
+//     content: '';
+//     display: block;
+//     border-radius: 100vh;
+//     position: absolute;
+//   }
+
+//   &::before {
+//     border: s(2) solid get-color-palette('neutral-04');
+//     top: 50%;
+//     left: 0;
+//     transform: translateY(-50%);
+//     width: s(21);
+//     height: s(21);
+
+//     @include media(get-breakpoint-key('sp')) {
+//       width: s(14);
+//       height: s(14);
+//     }
+//   }
+//   &::after {
+//     background-color: get-color-palette('neutral-01');
+//     top: 50%;
+//     left: s(5);
+//     transform: translateY(-50%);
+//     width: s(11);
+//     height: s(11);
+//     opacity: 0;
+//     transition: opacity get-transition('normal');
+
+//     @include media(get-breakpoint-key('sp')) {
+//       width: s(7.5);
+//       height: s(7.5);
+//       left: s(3.2);
+//     }
+//   }
+
+//   &:has(input:checked) {
+//     &::after {
+//       opacity: 1;
+//     }
+//   }
+
+//   &_label {
+//     @include font(22, 22, 0, get-font-weight('noto-sans-jp', 'strong'));
+//     cursor: pointer;
+
+//     @include media(get-breakpoint-key('sp')) {
+//       font-size: s(14);
+//     }
+//   }
+// }
+
+// /******************************************************************
+// * ファイルアップローダー
+// *******************************************************************/
+// .el_fileUploader {
+//   $_this: &;
+//   position: relative;
+//   width: 100%;
+
+//   &_inner {
+//     position: relative;
+//     display: flex;
+//     flex-direction: column;
+//     align-items: center;
+//     padding: s(16) s(32);
+//     border: s(1) solid get-color('border', 'subtle');
+//     border-radius: get-border-radius('s');
+//     background-color: get-color('background', 'contents1');
+//     box-sizing: border-box;
+//     min-height: s(156);
+//     cursor: pointer;
+
+//     &:has(#{$_this}_delete[style*='inline-block']) {
+//       cursor: default;
+//     }
+
+//     &.is_dragover {
+//       border-color: get-color('border', 'brand');
+//       background-color: rgba(get-color('background', 'brand'), 0.08);
+//     }
+//   }
+
+//   &_content {
+//     display: flex;
+//     flex-direction: column;
+//     align-items: center;
+//     gap: s(8);
+//     width: 100%;
+//     pointer-events: none;
+//   }
+
+//   &_icon {
+//     display: flex;
+//     align-items: center;
+//     justify-content: center;
+//     width: s(40);
+//     height: s(40);
+//     padding: s(8);
+//     border-radius: 100vh;
+//     background-color: get-color('background', 'contents2');
+//     box-sizing: border-box;
+
+//     img {
+//       display: block;
+//       width: s(24);
+//       height: s(24);
+//     }
+//   }
+
+//   &_lead {
+//     @include font($_key: 'paragraph/m');
+//     margin: 0;
+//     color: get-color('text', 'default');
+//     text-align: center;
+//   }
+
+//   &_note {
+//     @include font($_key: 'etc/s');
+//     margin: 0;
+//     color: get-color('text', 'muted');
+//     text-align: center;
+//   }
+
+//   &_control {
+//     position: absolute;
+//     inset: 0;
+//     display: flex;
+//     flex-direction: column;
+//     align-items: center;
+//     justify-content: center;
+//     gap: s(8);
+//     padding: s(16) s(32);
+//     box-sizing: border-box;
+//   }
+
+//   &_label {
+//     position: absolute;
+//     inset: 0;
+//     margin: 0;
+//     font-size: 0;
+//     color: transparent;
+//     cursor: pointer;
+//   }
+
+//   &_name {
+//     @include font($_key: 'paragraph/m');
+//     position: relative;
+//     z-index: 1;
+//     margin: 0;
+//     color: get-color('text', 'default');
+//     text-align: center;
+//     word-break: break-all;
+//   }
+
+//   &_delete {
+//     @include font($_key: 'etc/s');
+//     position: relative;
+//     z-index: 1;
+//     margin: 0;
+//     padding: 0;
+//     border: none;
+//     background: none;
+//     color: get-color('text', 'muted');
+//     cursor: pointer;
+//     text-decoration: underline;
+
+//     @include hover-only {
+//       color: get-color('text', 'default');
+//     }
+//   }
+
+//   &_inner:has(#{$_this}_delete[style*='inline-block']) {
+//     #{$_this}_content {
+//       display: none;
+//     }
+//   }
+
+//   &.is_error #{$_this}_inner {
+//     border-color: get-color('border', 'danger');
+//   }
+// }

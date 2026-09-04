@@ -1,0 +1,46 @@
+@use '../foundation/' as *;
+@use './scope' as block-editor;
+
+/******************************************************************
+* ブロックエディタ出力要素の縦間隔（兄弟要素の margin-top）
+*
+* - h2: 60 / SP 50
+* - h3: 40 / SP 34
+* - 本文（段落）: 20 / SP 20
+* - その他: 34 / SP 30
+*******************************************************************/
+
+@mixin block-stack-margin($pc, $sp: null) {
+  $sp-value: if($sp != null, $sp, $pc);
+  margin-top: s($pc);
+
+  @include media(get-breakpoint-key('sp')) {
+    margin-top: s($sp-value);
+  }
+}
+
+@include block-editor.scope {
+  $_stackParents: '> *', '.wp-block-group > *';
+
+  @each $parent in $_stackParents {
+    #{$parent} {
+      margin-block: 0;
+    }
+
+    #{$parent} + * {
+      @include block-stack-margin(34, 30);
+    }
+
+    #{$parent} + h2 {
+      @include block-stack-margin(60, 50);
+    }
+
+    #{$parent} + h3 {
+      @include block-stack-margin(40, 34);
+    }
+
+    #{$parent} + :is(p, .wp-block-paragraph) {
+      @include block-stack-margin(20, 20);
+    }
+  }
+}

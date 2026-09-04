@@ -1,0 +1,293 @@
+#!/bin/sh
+#
+# Git pre-commit hook
+# コミット前にステージングされた JS/SCSS/HTML に対して prettier（JS は eslint も）、
+# PHP に対して php-cs-fixer を実行して自動整形・修正します
+# （Docker コンテナ内で実行）
+#
+
+# ============================================================================
+# 初期設定
+# ============================================================================
+
+# ============================================================================
+# パス・ファイル名の定数
+# ============================================================================
+
+ENV_FILE_NAME=".env"
+
+RESOURCES_DIR="resources"
+
+# コンテナ内の resources 基点（prettier/eslint の実行パス）
+CONTAINER_RESOURCES_BASE="/var/www/html"
+
+# プレフィックス（ルート直下の resources 配下）
+RESOURCES_PREFIX="${RESOURCES_DIR}/"
+
+# プロジェクトルートディレクトリを取得
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+cd "$ROOT_DIR" || exit 1
+
+# ============================================================================
+# 環境変数の読み込み
+# ============================================================================
+
+# .envファイルから環境変数を読み込む
+if [ -f "$ROOT_DIR/$ENV_FILE_NAME" ]; then
+  set -a
+  . "$ROOT_DIR/$ENV_FILE_NAME"
+  set +a
+fi
+
+# Docker Composeサービス名（環境変数から取得、未設定時はfrontendをデフォルト値として使用）
+FRONT_CONTAINER="${FRONT_CONTAINER:-frontend}"
+
+# WordPress サービス名（php-cs-fixer 実行用）
+WP_CONTAINER="${WP_CONTAINER:-wordpress}"
+
+# プロジェクト名（環境変数から取得、未設定時はsample_hpをデフォルト値として使用）
+PROJECT_NAME="${PROJECT_NAME:-sample_hp}"
+
+# テーマディレクトリ名（.env の WP_THEME_NAME を優先）
+WP_THEME_NAME="${WP_THEME_NAME:-uds-fa-hp}"
+
+# コンテナ名を構築（形式: ${PROJECT_NAME}_${FRONT_CONTAINER} / ${PROJECT_NAME}_${WP_CONTAINER}）
+CONTAINER_NAME="${PROJECT_NAME}_${FRONT_CONTAINER}"
+WP_CONTAINER_NAME="${PROJECT_NAME}_${WP_CONTAINER}"
+
+# ============================================================================
+# 対象ディレクトリの設定
+# ============================================================================
+
+THEME_ROOT_PATH="resources/wp-dir/wp-content/themes/${WP_THEME_NAME}"
+JS_DIR_PATH="${THEME_ROOT_PATH}/src/js"
+SCSS_DIR_PATH="${THEME_ROOT_PATH}/src/scss"
+HTML_DIR_PATH="${RESOURCES_DIR}"
+PHP_DIR_PATH="${RESOURCES_DIR}"
+
+# grep 用正規表現（末尾の $ はシェル展開を避けるために \$ を使用）
+JS_FILE_REGEX="^${JS_DIR_PATH}/.*\\.js\$"
+SCSS_FILE_REGEX="^${SCSS_DIR_PATH}/.*\\.scss\$"
+HTML_FILE_REGEX="^${HTML_DIR_PATH}/.*\\.html\$"
+PHP_FILE_REGEX="^${PHP_DIR_PATH}/.*\\.php\$"
+
+# ============================================================================
+# ステージングされたファイルの取得と分類
+# ============================================================================
+
+# ステージングされたファイル一覧を取得（追加・変更・マージされたファイルのみ）
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM)
+
+# ステージングされたファイルがない場合は終了
+if [ -z "$STAGED_FILES" ]; then
+  exit 0
+fi
+
+# JS / SCSS / HTML / PHP ファイルを分類
+JS_FILES=""
+SCSS_FILES=""
+HTML_FILES=""
+PHP_FILES=""
+
+for file in $STAGED_FILES; do
+  relative_file="$file"
+  
+  # JSファイル（${JS_DIR_PATH}/配下）を抽出
+  if echo "$relative_file" | grep -q "$JS_FILE_REGEX"; then
+    JS_FILES="$JS_FILES $file"
+  fi
+  
+  # SCSSファイル（${SCSS_DIR_PATH}/配下）を抽出
+  if echo "$relative_file" | grep -q "$SCSS_FILE_REGEX"; then
+    SCSS_FILES="$SCSS_FILES $file"
+  fi
+  
+  # HTMLファイル（resources/配下）を抽出
+  if echo "$relative_file" | grep -q "$HTML_FILE_REGEX"; then
+    HTML_FILES="$HTML_FILES $file"
+  fi
+  
+  # PHPファイル（resources/配下、ツール用設定は除外）を抽出
+  if echo "$relative_file" | grep -q "$PHP_FILE_REGEX"; then
+    case "$relative_file" in
+      "${RESOURCES_DIR}/php-cs-fixer.dist.php") ;;
+      *) PHP_FILES="$PHP_FILES $file" ;;
+    esac
+  fi
+done
+
+# ============================================================================
+# Dockerコンテナが起動しているか確認（必要なときだけ）
+# ============================================================================
+
+NEED_FRONT=0
+if [ -n "$JS_FILES" ] || [ -n "$SCSS_FILES" ] || [ -n "$HTML_FILES" ]; then
+  NEED_FRONT=1
+fi
+
+NEED_WP=0
+if [ -n "$PHP_FILES" ]; then
+  NEED_WP=1
+fi
+
+# コンテナ未起動時に整形スキップで続行するか確認
+confirm_skip_without_format() {
+  missing_containers="$1"
+  start_examples="$2"
+
+  echo "⚠️ 以下のDockerコンテナが起動していません。"
+  echo "${missing_containers}"
+  echo "   整形なしでコミットを続行しますか？ [y/N]"
+
+  if [ -r /dev/tty ]; then
+    printf "> " > /dev/tty
+    read -r answer < /dev/tty
+  else
+    echo "❌ 対話入力が利用できないため、コミットを停止します。"
+    echo "${start_examples}"
+    return 1
+  fi
+
+  case "$answer" in
+    y|Y|yes|YES)
+      return 0
+      ;;
+    *)
+      echo "❌ コミットを停止しました。"
+      echo "${start_examples}"
+      return 1
+      ;;
+  esac
+}
+
+FRONT_RUNNING=1
+WP_RUNNING=1
+
+if [ "$NEED_FRONT" -eq 1 ]; then
+  if ! docker ps --format "{{.Names}}" 2>/dev/null | grep -q "^${CONTAINER_NAME}$"; then
+    FRONT_RUNNING=0
+  fi
+fi
+
+if [ "$NEED_WP" -eq 1 ]; then
+  if ! docker ps --format "{{.Names}}" 2>/dev/null | grep -q "^${WP_CONTAINER_NAME}$"; then
+    WP_RUNNING=0
+  fi
+fi
+
+if [ "$FRONT_RUNNING" -eq 0 ] || [ "$WP_RUNNING" -eq 0 ]; then
+  MISSING_CONTAINERS=""
+  START_EXAMPLES=""
+
+  if [ "$FRONT_RUNNING" -eq 0 ]; then
+    MISSING_CONTAINERS="${MISSING_CONTAINERS}  - ${CONTAINER_NAME}
+"
+    START_EXAMPLES="${START_EXAMPLES}  例: make up または docker compose up -d ${FRONT_CONTAINER}
+"
+  fi
+
+  if [ "$WP_RUNNING" -eq 0 ]; then
+    MISSING_CONTAINERS="${MISSING_CONTAINERS}  - ${WP_CONTAINER_NAME}
+"
+    START_EXAMPLES="${START_EXAMPLES}  例: docker compose up -d ${WP_CONTAINER}
+"
+  fi
+
+  if confirm_skip_without_format "${MISSING_CONTAINERS}" "${START_EXAMPLES}"; then
+    if [ "$FRONT_RUNNING" -eq 0 ]; then
+      SCSS_FILES=""
+      HTML_FILES=""
+      JS_FILES=""
+      NEED_FRONT=0
+      echo "⏭️ フロント側の整形処理をスキップして続行します。"
+    fi
+
+    if [ "$WP_RUNNING" -eq 0 ]; then
+      PHP_FILES=""
+      NEED_WP=0
+      echo "⏭️ PHP整形処理をスキップして続行します。"
+    fi
+  else
+    exit 1
+  fi
+fi
+
+# ============================================================================
+# SCSSファイルの整形処理
+# ============================================================================
+
+if [ -n "$SCSS_FILES" ]; then
+  echo "🔧 SCSSファイルを整形中..."
+  for file in $SCSS_FILES; do
+    # コンテナ内のパスに変換（resources/ プレフィックスを削除）
+    relative_file="${file#${RESOURCES_PREFIX}}"
+    
+    # コンテナ内でprettierを実行してファイルを整形
+    docker exec "${CONTAINER_NAME}" npx prettier --write "$CONTAINER_RESOURCES_BASE/${relative_file}" || exit 1
+    
+    # 整形後のファイルをステージングに追加
+    git add "$file"
+  done
+fi
+
+# ============================================================================
+# HTMLファイルの整形処理
+# ============================================================================
+
+if [ -n "$HTML_FILES" ]; then
+  echo "🔧 HTMLファイルを整形中..."
+  for file in $HTML_FILES; do
+    relative_file="${file#${RESOURCES_PREFIX}}"
+    docker exec "${CONTAINER_NAME}" npx prettier --write "$CONTAINER_RESOURCES_BASE/${relative_file}" || exit 1
+    git add "$file"
+  done
+fi
+
+# ============================================================================
+# PHPファイルの整形処理
+# ============================================================================
+
+if [ -n "$PHP_FILES" ]; then
+  echo "🔧 PHPファイルを PHP CS Fixer で整形中..."
+  for file in $PHP_FILES; do
+    relative_file="${file#${RESOURCES_PREFIX}}"
+    docker exec "${WP_CONTAINER_NAME}" php-cs-fixer fix \
+      "$CONTAINER_RESOURCES_BASE/${relative_file}" \
+      --config=/var/www/html/php-cs-fixer.dist.php || exit 1
+    git add "$file"
+  done
+fi
+
+# ============================================================================
+# JSファイルの整形・修正処理
+# ============================================================================
+
+if [ -n "$JS_FILES" ]; then
+  # prettierでJSファイルを整形
+  echo "🔧 JSファイルを整形中..."
+  for file in $JS_FILES; do
+    # コンテナ内のパスに変換（resources/ プレフィックスを削除）
+    relative_file="${file#${RESOURCES_PREFIX}}"
+    
+    # コンテナ内でprettierを実行してファイルを整形
+    docker exec "${CONTAINER_NAME}" npx prettier --write "$CONTAINER_RESOURCES_BASE/${relative_file}" || exit 1
+    
+    # 整形後のファイルをステージングに追加
+    git add "$file"
+  done
+  
+  # eslintでJSファイルを修正
+  echo "🔧 JSファイルをESLintで修正中..."
+  for file in $JS_FILES; do
+    # コンテナ内のパスに変換（resources/ プレフィックスを削除）
+    relative_file="${file#${RESOURCES_PREFIX}}"
+    
+    # コンテナ内でeslint --fixを実行して自動修正（ignore対象の警告は非表示）
+    docker exec "${CONTAINER_NAME}" npx eslint --fix --no-warn-ignored "$CONTAINER_RESOURCES_BASE/${relative_file}" || exit 1
+    
+    # 修正後のファイルをステージングに追加
+    git add "$file"
+  done
+fi
+
+exit 0

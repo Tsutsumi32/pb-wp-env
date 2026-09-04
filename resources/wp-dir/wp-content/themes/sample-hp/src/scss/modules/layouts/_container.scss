@@ -1,0 +1,23 @@
+@use '../../foundation/' as *;
+
+/******************************************************************
+* layout - container
+* $container-sizesで定義されたサイズごとにモディファイアクラスを生成
+* 例）ly_container __medium, __large,  __small, ・・・
+*******************************************************************/
+.ly_container {
+  // サイズモディファイア
+  @each $type, $sizes in $container-sizes {
+    &.__#{$type} {
+      @include container($type);
+    }
+  }
+
+  &.__spWide {
+    @include media(get-breakpoint-key('sp')) {
+      max-width: none !important;
+      width: 100% !important;
+      padding-inline: 0 !important;
+    }
+  }
+}

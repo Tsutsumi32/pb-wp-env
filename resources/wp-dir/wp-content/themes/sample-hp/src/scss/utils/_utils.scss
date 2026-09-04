@@ -1,0 +1,157 @@
+@use 'sass:list';
+@use 'sass:map';
+@use 'sass:string';
+@use '../foundation' as *;
+@use '../foundation/functions/strip-unit' as *;
+
+/******************************************************************
+* utils
+*******************************************************************/
+/* margin / padding ユーティリティ
+* 2-8: 2の倍数 / 8-32: 4の倍数 / 32以降: 8の倍数
+----------------------------------------------------------------- */
+$_space-values: ();
+
+// 2-8（2の倍数）
+@for $v from 2 through 8 {
+  @if $v % 2 == 0 {
+    $_space-values: list.append($_space-values, $v);
+  }
+}
+
+// 8-32（4の倍数）※8は重複するため12から開始
+@for $v from 12 through 32 {
+  @if $v % 4 == 0 {
+    $_space-values: list.append($_space-values, $v);
+  }
+}
+
+// 32以降（8の倍数）※32は重複するため40から開始
+@for $v from 40 through 240 {
+  @if $v % 8 == 0 {
+    $_space-values: list.append($_space-values, $v);
+  }
+}
+
+@each $v in $_space-values {
+  // margin
+  .ut_m_#{$v} {
+    margin: s($v);
+  }
+  .ut_mT_#{$v} {
+    margin-top: s($v);
+  }
+  .ut_mB_#{$v} {
+    margin-bottom: s($v);
+  }
+  .ut_mL_#{$v} {
+    margin-left: s($v);
+  }
+  .ut_mR_#{$v} {
+    margin-right: s($v);
+  }
+  .ut_mY_#{$v} {
+    margin-block: s($v);
+  }
+  .ut_mX_#{$v} {
+    margin-inline: s($v);
+  }
+
+  // padding
+  .ut_p_#{$v} {
+    padding: s($v);
+  }
+  .ut_pT_#{$v} {
+    padding-top: s($v);
+  }
+  .ut_pB_#{$v} {
+    padding-bottom: s($v);
+  }
+  .ut_pL_#{$v} {
+    padding-left: s($v);
+  }
+  .ut_pR_#{$v} {
+    padding-right: s($v);
+  }
+  .ut_pY_#{$v} {
+    padding-block: s($v);
+  }
+  .ut_pX_#{$v} {
+    padding-inline: s($v);
+  }
+}
+
+/* content space
+----------------------------------------------------------------- */
+// $content-spaceの各サイズに対してモディファイアクラスを生成
+// デフォルトはpadding 上だけにしたい場合「__top」 下だけにしたい場合「__bottom」付与
+// marginにしたい場合は「__mg」を付与
+.ut_space {
+  @each $size-name, $sizes in $content-space {
+    &.__#{$size-name} {
+      @include content-space($size-name);
+
+      &.__top {
+        padding-bottom: 0 !important;
+      }
+
+      &.__bottom {
+        padding-top: 0 !important;
+      }
+
+      &.__mg {
+        @include content-space($size-name, 'mg');
+        padding-block: 0 !important;
+
+        &.__top {
+          margin-bottom: 0 !important;
+        }
+
+        &.__bottom {
+          margin-top: 0 !important;
+        }
+      }
+    }
+  }
+}
+
+/* text style
+----------------------------------------------------------------- */
+// $text-stylesのキーに対応するモディファイアクラスを生成（キーの / は - に変換）
+// 例) 'head/l' → .ut_text.__head-l
+@function _text-style-class-key($_style-key) {
+  $_parts: string.split($_style-key, '/');
+
+  @return list.nth($_parts, 1) + '-' + list.nth($_parts, 2);
+}
+
+.ut_text {
+  @each $_style-key, $_style in $text-styles {
+    &.__#{_text-style-class-key($_style-key)} {
+      @include font($_key: $_style-key);
+    }
+  }
+
+  &.__center {
+    text-align: center;
+  }
+
+  &.__right {
+    text-align: right;
+  }
+}
+
+
+/* layout
+----------------------------------------------------------------- */
+.ut_layout {
+  width: fit-content;
+
+  &.__center {
+    margin-inline: auto;
+  }
+
+  &.__right {
+    margin-left: auto;
+  }
+}

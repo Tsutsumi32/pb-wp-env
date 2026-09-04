@@ -1,0 +1,25 @@
+/******************************************************************
+* wp-block-editor 共通スコープ
+*
+* フロント: .ly_blockEditor
+* 管理画面: .editor-styles-wrapper
+*
+* scope … 共通スタイル
+* admin-scope … 管理画面のみの上書き
+*******************************************************************/
+
+@mixin scope {
+  .ly_blockEditor {
+    @content;
+  }
+
+  .editor-styles-wrapper {
+    @content;
+  }
+}
+
+@mixin admin-scope {
+  .editor-styles-wrapper {
+    @content;
+  }
+}

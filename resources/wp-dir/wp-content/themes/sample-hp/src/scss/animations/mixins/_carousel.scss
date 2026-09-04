@@ -1,0 +1,61 @@
+@use '../../foundation/mixins/judgement/motion' as *;
+
+/******************************************************************
+ * カルーセル用アニメーション
+ * 動かす要素は半分で連結できる形を準備。transformで半分動かしてループさせる
+
+ * $_direction：方向　to-top, top-bottom, top-left, to-right
+ ******************************************************************/
+@keyframes carousel-to-top {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-50%);
+  }
+}
+
+@keyframes carousel-to-bottom {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(-50%);
+  }
+}
+
+@keyframes carousel-to-left {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes carousel-to-right {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@mixin anim-carousel($_direction, $_transition) {
+  @include allow-motion {
+    @if $_direction == 'to-top' {
+      animation: carousel-to-top $_transition linear infinite normal;
+    } @else if $_direction == 'to-bottom' {
+      animation: carousel-to-bottom $_transition linear infinite normal;
+      position: relative;
+      top: 100%;
+    } @else if $_direction == 'to-left' {
+      animation: carousel-to-left $_transition linear infinite normal;
+    } @else if $_direction == 'to-right' {
+      animation: carousel-to-right $_transition linear infinite normal;
+      position: relative;
+      left: 100%;
+    } 
+  }
+}

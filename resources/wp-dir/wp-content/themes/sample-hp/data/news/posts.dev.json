@@ -1,0 +1,50 @@
+[
+  {
+    "_external_id": "news-dev-001",
+    "post_title": "タイトルタイトルタイトルタイトルタイトルタイトル1",
+    "post_content": "内容内容内容内容内容内容内容内容内容内容内容1",
+    "post_status": "publish",
+    "post_date": "2026-04-02 10:00:00",
+    "_thumbnail": "../sample-img/sample-thumb.jpg",
+    "taxonomies": {
+      "news-category": "blog"
+    },
+    "acf": {
+      "news_taxonomy": "blog",
+      "news_image": "../sample-img/sample-thumb.jpg",
+      "news_content": "ホームページをリニューアルしました。\n何卒よろしくお願い申し上げます。"
+    }
+  },
+  {
+    "_external_id": "news-dev-002",
+    "post_title": "タイトルタイトルタイトルタイトルタイトルタイトル2",
+    "post_content": "内容内容内容内容内容内容内容内容内容内容内容2",
+    "post_status": "publish",
+    "post_date": "2026-04-03 10:00:00",
+    "_thumbnail": "../sample-img/sample-thumb.jpg",
+    "taxonomies": {
+      "news-category": "news"
+    },
+    "acf": {
+      "news_taxonomy": "news",
+      "news_image": "../sample-img/sample-thumb.jpg",
+      "news_content": "お知らせのサンプル本文です。"
+    }
+  },
+  {
+    "_external_id": "news-dev-003",
+    "post_title": "タイトルタイトルタイトルタイトルタイトルタイトル3",
+    "post_content": "内容内容内容内容内容内容内容内容内容内容内容3",
+    "post_status": "publish",
+    "post_date": "2026-04-04 10:00:00",
+    "_thumbnail": "../sample-img/sample-thumb.jpg",
+    "taxonomies": {
+      "news-category": "others"
+    },
+    "acf": {
+      "news_taxonomy": "others",
+      "news_image": "../sample-img/sample-thumb.jpg",
+      "news_content": "その他カテゴリのサンプル本文です。"
+    }
+  }
+]

@@ -1,0 +1,18 @@
+@use '../foundation/' as *;
+@use './scope' as block-editor;
+
+/******************************************************************
+* 管理画面ブロックエディタ専用
+*******************************************************************/
+@include block-editor.admin-scope {
+  /* 管理画面側はs()をpxに
+  ----------------------------------------------------------------- */
+  --liq-unit: 1px; // s(24) → calc(24 * 1px) = 24px（デザイン値=px）
+  background-color: $color-body-bg !important;
+  color: $color-base-text;
+}
+
+// コア editor スタイルより優先して背景色を適用
+html :where(.editor-styles-wrapper) {
+  background-color: $color-body-bg !important;
+}

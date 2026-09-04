@@ -1,0 +1,30 @@
+@use 'sass:math';
+@use 'sass:meta';
+/******************************************************************
+* strip-unit　単位を除去する、または指定した単位に変換する
+* @param $value 単位を除去したい値(単位有)
+* @param $unit オプション: 変換したい単位(単位有) 例: 1px, 1rem, 1%
+*  例) strip-unit(32px) → 32
+*  例) strip-unit(32px, 1rem) → 2rem
+*******************************************************************/
+@function strip-unit($_value, $_unit: null) {
+  // 単位除去は math.div を使用
+  $_n: null;
+  @if math.is-unitless($_value) {
+    $_n: $_value;
+  } @else {
+    $_n: math.div($_value, ($_value * 0 + 1));
+  }
+
+  @if $_unit == null {
+    @return $_n;
+  }
+
+  // ここを meta.type-of に
+  @if meta.type-of($_unit) != 'number' or math.is-unitless($_unit) {
+    @error 'strip-unit(): The second argument must be a number with a unit, e.g. 1px, 1rem, or 1%.';
+  }
+
+  $_unit-one: math.div($_unit, strip-unit($_unit));
+  @return $_n * $_unit-one;
+}

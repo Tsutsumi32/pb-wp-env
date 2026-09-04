@@ -1,0 +1,98 @@
+@use '../../foundation/' as *;
+
+/******************************************************************
+* element - loading
+* 全画面オーバーレイの送信・処理待ち表示。
+* formValidator 等が is_active を付与し、表示は CSS で制御する。
+* 画面全体を覆うことが部品の本質のため、ここだけ position: fixed を定義する。
+*******************************************************************/
+.el_loading {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: get-z-index('loading');
+  background-color: rgba(59, 59, 59, 0.32);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  pointer-events: none;
+  cursor: wait;
+
+  // State
+  //////////////////////////////////////////////
+  &.is_active {
+    display: block;
+    pointer-events: auto;
+  }
+
+  // ブランド色の回転スピナー
+  &::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 52px;
+    height: 52px;
+    margin-top: -26px;
+    margin-left: -26px;
+    box-sizing: border-box;
+    border: 3px solid rgba(252, 252, 252, 0.28);
+    border-top-color: #bbcd31;
+    border-right-color: #e9a025;
+    border-radius: 50%;
+    animation: el-loading-spin 0.8s linear infinite;
+  }
+
+  // スピナー背後のソフトグロー
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 96px;
+    height: 96px;
+    margin-top: -48px;
+    margin-left: -48px;
+    border-radius: 50%;
+    background: radial-gradient(
+      circle,
+      rgba(187, 205, 49, 0.35) 0%,
+      rgba(233, 160, 37, 0.12) 42%,
+      rgba(187, 205, 49, 0) 72%
+    );
+    pointer-events: none;
+    animation: el-loading-pulse 1.5s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &::before {
+      animation: none;
+      border-color: rgba(252, 252, 252, 0.35);
+      border-top-color: #bbcd31;
+      border-right-color: #bbcd31;
+    }
+
+    &::after {
+      animation: none;
+      opacity: 0.65;
+    }
+  }
+}
+
+@keyframes el-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes el-loading-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.9);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

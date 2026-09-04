@@ -1,0 +1,27 @@
+@use '../../foundation/' as *;
+@use '../scope' as block-editor;
+
+/******************************************************************
+* core/button ブロックスタイル（Primary / Secondary）
+* register_block_style() … is-style-primary / is-style-secondary
+*******************************************************************/
+
+@include block-editor.scope {
+  .wp-block-button {
+    &.is-style-secondary {
+      .wp-block-button__link {
+        background-color: get-color('background', 'link2');
+      }
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ly_blockEditor,
+  .editor-styles-wrapper {
+    .wp-block-button.is-style-primary .wp-block-button__link,
+    .wp-block-button.is-style-secondary .wp-block-button__link {
+      transition: none;
+    }
+  }
+}

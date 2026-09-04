@@ -1,0 +1,35 @@
+/******************************************************************
+ * アコーディオンコンテンツの表示・非表示処理
+ * - accordion.jsの処理によって付与されるis_activeと連動してアコーディオンのコンテンツを表示・非表示する
+ * - 親：has_accordion　コンテンツ：has_accordion_contents
+ * ※中のコンテンツにpadding-top margin-topを付ける場合、contentsの中にinnerを1つ格納し、その中の要素に対してpadding、marginを付ける
+ ******************************************************************/
+.has_accordion {
+  $_accordion: &;
+
+  // 表示・非表示を行うコンテンツの親タグに付与する
+  &_contents {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition:
+      grid-template-rows 0.5s ease,
+      opacity 0.55s ease;
+    opacity: 0;
+
+    > * {
+      min-height: 0;
+      overflow: hidden;
+    }
+  }
+
+  &.is_active #{$_accordion}_contents {
+    grid-template-rows: 1fr;
+    opacity: 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &_contents {
+      transition: none;
+    }
+  }
+}

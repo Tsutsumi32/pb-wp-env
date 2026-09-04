@@ -1,0 +1,12 @@
+@use '../foundation/' as *;
+
+/******************************************************************
+* wp-block-styles 用 foundation セットアップ
+*
+* 管理画面では common.css を読まないため、
+* CSS 変数（--liq-unit / --color-*）をここで生成する。
+*******************************************************************/
+@include style-settings-vars;
+@include border-radius-vars;
+@include border-width-vars;
+@include generate-color-themes;

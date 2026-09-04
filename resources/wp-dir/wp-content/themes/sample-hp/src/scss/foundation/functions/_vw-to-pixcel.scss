@@ -1,0 +1,11 @@
+@use './strip-unit' as *;
+/******************************************************************
+* vw(%)指定時、指定幅時点の固定値取得
+* @param $number 数値
+* @param $basis vw(%)を計算するための基準幅
+* @param $width 求めたい時点の幅
+* 例) 画面幅1280px時点で100pxとなるvw変化において、画面幅1400px時点での値を取得する。(100, 1280, 1400);
+*******************************************************************/
+@function vw-to-pixel($_number, $_basis, $_width) {
+  @return calc(strip-unit($_number) / strip-unit($_basis) * strip-unit($_width) * 1px);
+}
