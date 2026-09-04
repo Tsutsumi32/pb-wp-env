@@ -1,6 +1,7 @@
 /************************************************************
  * フォームファイルのドラッグ&ドロップ（features）
  * - data-feature="formFileDrop" を付与した要素内の file input に D&D でファイルをセット
+ * - クリックでファイル選択ダイアログを開く（ネイティブ input はヒット判定に使わない）
  * - formValidator のファイル UI（選択名表示・削除）と連携するため change / input を発火
  *
  * マークアップ例:
@@ -24,8 +25,17 @@ const CLASS_DRAGOVER = 'is_dragover';
 /** @type {WeakSet<HTMLElement>} */
 const boundZones = new WeakSet();
 
-/** @type {WeakMap<HTMLElement, number>} */
-const dragDepthByZone = new WeakMap();
+/**
+ * ポインタ座標が要素の描画矩形内か
+ * @param {HTMLElement} el
+ * @param {number} clientX
+ * @param {number} clientY
+ * @returns {boolean}
+ */
+const isPointInElement = (el, clientX, clientY) => {
+  const rect = el.getBoundingClientRect();
+  return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
+};
 
 /**
  * file input に単一ファイルをセットし、formValidator 連携用イベントを発火
@@ -44,50 +54,50 @@ const assignFileToInput = (fileInput, file) => {
 /**
  * D&D ゾーンにイベントを束ねる
  * @param {HTMLElement} zone
+ * @param {HTMLElement} visual
  * @param {HTMLInputElement} fileInput
  * @returns {void}
  */
-const bindDropZone = (zone, fileInput) => {
+const bindDropZone = (zone, visual, fileInput) => {
   if (boundZones.has(zone)) return;
   boundZones.add(zone);
 
+  /**
+   * ドラッグオーバー見た目を切替
+   * @param {boolean} isActive
+   * @returns {void}
+   */
   const setDragover = (isActive) => {
-    zone.classList.toggle(CLASS_DRAGOVER, isActive);
+    visual.classList.toggle(CLASS_DRAGOVER, isActive);
   };
 
   zone.addEventListener('dragenter', (event) => {
     event.preventDefault();
-    event.stopPropagation();
     if (fileInput.disabled) return;
-
-    const depth = (dragDepthByZone.get(zone) ?? 0) + 1;
-    dragDepthByZone.set(zone, depth);
-    if (depth === 1) setDragover(true);
+    setDragover(true);
   });
 
   zone.addEventListener('dragover', (event) => {
     event.preventDefault();
-    event.stopPropagation();
     if (fileInput.disabled) return;
 
     if (event.dataTransfer) {
       event.dataTransfer.dropEffect = 'copy';
     }
+    setDragover(true);
   });
 
   zone.addEventListener('dragleave', (event) => {
     event.preventDefault();
-    event.stopPropagation();
-
-    const depth = Math.max(0, (dragDepthByZone.get(zone) ?? 0) - 1);
-    dragDepthByZone.set(zone, depth);
-    if (depth === 0) setDragover(false);
+    const related = event.relatedTarget;
+    if (related instanceof Node && zone.contains(related)) return;
+    if (isPointInElement(zone, event.clientX, event.clientY)) return;
+    setDragover(false);
   });
 
   zone.addEventListener('drop', (event) => {
     event.preventDefault();
     event.stopPropagation();
-    dragDepthByZone.set(zone, 0);
     setDragover(false);
 
     if (fileInput.disabled) return;
@@ -97,6 +107,14 @@ const bindDropZone = (zone, fileInput) => {
     if (!file) return;
 
     assignFileToInput(fileInput, file);
+  });
+
+  zone.addEventListener('click', (event) => {
+    if (fileInput.disabled) return;
+    if (!(event.target instanceof Element)) return;
+    if (event.target.closest('button')) return;
+    if (event.target.closest('input[type="file"]')) return;
+    fileInput.click();
   });
 };
 
@@ -112,12 +130,13 @@ const init = (options = {}) => {
   Array.from(root.querySelectorAll(SELECTOR_FEATURE)).forEach((featureRoot) => {
     if (!(featureRoot instanceof HTMLElement)) return;
 
-    const zone = featureRoot.querySelector(`[${ATTR_FILE_WRAPPER}]`);
+    const fileWrapper = featureRoot.querySelector(`[${ATTR_FILE_WRAPPER}]`);
+    const visual = fileWrapper instanceof HTMLElement ? fileWrapper : featureRoot;
     const fileInput = featureRoot.querySelector('input[type="file"]');
 
-    if (!(zone instanceof HTMLElement) || !(fileInput instanceof HTMLInputElement)) return;
+    if (!(fileInput instanceof HTMLInputElement)) return;
 
-    bindDropZone(zone, fileInput);
+    bindDropZone(featureRoot, visual, fileInput);
   });
 };
 

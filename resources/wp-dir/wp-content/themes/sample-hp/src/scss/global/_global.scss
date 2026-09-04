@@ -24,16 +24,24 @@ html {
   // スムーススクロールは基本的にjsで制御(Jsのライブラリと相性が悪い場合があるため)
   // scroll-behavior: smooth;
   // 画面遷移を伴う場合の位置調整はscroll-padding-topで調整
-  scroll-padding-top: calc(s(get-height('header-pc')));
+  scroll-padding-top: calc(s(get-height('header-pc')) + s(24));
 
   @include media(get-breakpoint-key('sp')) {
-    scroll-padding-top: calc(s(get-height('header-sp')));
+    scroll-padding-top: calc(s(get-height('header-sp')) + s(24));
   }
 }
 
 body {
   // デザインの改行方法によって変更する
+  // font-feature-settings: "palt";
+  // font-variant-east-asian: proportional-width;
+  // font-feature-settings: "liga";
+  // font-variant-ligatures: normal;
   // word-break: break-all;
+  
+  // テキストトリミング
+  // text-box-trim: trim-both;
+  // text-box-edge: cap alphabetic;
   word-break: break-word;
   line-break: strict;
   font-family: $base_font;

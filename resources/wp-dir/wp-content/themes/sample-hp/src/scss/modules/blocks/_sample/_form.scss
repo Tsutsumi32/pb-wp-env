@@ -14,6 +14,9 @@
   display: contents !important;
 }
 
+.wpcf7-form-control.wpcf7-checkbox .wpcf7-list-item {
+  margin: 0 !important;
+}
 
 /******************************************************************
 * block - form（入力フォーム共通）
@@ -171,7 +174,7 @@
     //   }
 
     //   .wpcf7-list-item-label {
-    //     @include font($_key: 'etc/m');
+    //     @include font($_key: 'label/m');
     //     color: get-color('text', 'default');
     //   }
     // }
@@ -285,6 +288,10 @@
       font-size: s(12);
       height: s(236);
     }
+
+    .bl_form_validate {
+      text-align: center;
+    }
   }
 
   @mixin checkboxStyle {
@@ -344,7 +351,8 @@
     //   display: block;
     // }
 
-    // .wpcf7-list-item-label {
+    // .wpcf7-list-item-label,
+    // .wpcf7-form-control-wrap {
     //   display: none !important;
     // }
 

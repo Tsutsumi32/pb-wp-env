@@ -4,6 +4,7 @@
  * - 送信ボタンに data-action="formValidator.submit" を付与しフォームルートに delegate
  * - 初回は送信時のみ検証。送信でエラーが出た項目は focusout または（同意チェック等）checkbox / radio / file の change で再検証し、修正済みなら解除
  * - data-form-validator-validate / data-form-validator-input / data-form-validator-err 等で項目とエラー表示を紐付け
+ * - 通常フォーム（externalService）で送信時ローディングを出す場合は、送信ボタンに data-form-validator-loading を付与
  * - フォーム分岐は formBranchToggle と併用し、非表示枝に data-form-validator-inactive="true" を付与すると検証から除外される
  ************************************************************/
 
@@ -24,11 +25,15 @@ const ACTION_SUBMIT = 'formValidator.submit';
 const ACTION_BACK_TO_INPUT = 'formValidator.backToInput';
 /** 確認画面からの送信トリガー */
 const ACTION_CONFIRM_SUBMIT = 'formValidator.confirmSubmit';
+/** 選択済みファイルの削除トリガー */
+const ACTION_REMOVE_FILE = 'formValidator.removeFile';
 
 /** フォーム種別を識別（例: contact / download） */
 const ATTR_FORM_TYPE = `${FEATURE_DATA_PREFIX}-form`;
 /** 送信実行に使うボタン/要素を識別 */
 const ATTR_SUBMIT = `${FEATURE_DATA_PREFIX}-submit`;
+/** 送信時にローディング表示する送信ボタンを識別（通常フォーム向け。CF7 は常時表示） */
+const ATTR_SHOW_LOADING = `${FEATURE_DATA_PREFIX}-loading`;
 /** 項目ごとに実行するバリデーション種別を指定 */
 const ATTR_VALIDATE = `${FEATURE_DATA_PREFIX}-validate`;
 /** 入力項目のキー（エラー表示・確認画面マッピング用） */
@@ -55,6 +60,12 @@ const ATTR_SERVER_ERROR = `${FEATURE_DATA_PREFIX}-server-error`;
 const ATTR_LOADING = 'data-loading';
 const ATTR_FILE_UI_BOUND = `${FEATURE_DATA_PREFIX}-file-ui-bound`;
 const ATTR_FILE_WRAPPER = `${FEATURE_DATA_PREFIX}-file-wrapper`;
+/** 選択済みファイル表示ブロック */
+const ATTR_FILE_SELECTED = `${FEATURE_DATA_PREFIX}-file-selected`;
+/** 選択済みファイル名の表示先 */
+const ATTR_FILE_NAME = `${FEATURE_DATA_PREFIX}-file-name`;
+/** ファイル選択済み時にラッパーへ付与する状態 class */
+const CLASS_UPLOADED = 'is_uploaded';
 /** 祖先に付与すると、その配下の検証項目を除外する（お問い合わせ種別などのフォーム分岐用） */
 const ATTR_INACTIVE = `${FEATURE_DATA_PREFIX}-inactive`;
 
@@ -65,6 +76,9 @@ const SELECTOR_FORM_CONTACT = `[${DATA_ATTR.FEATURE}="${FEATURE_NAME}"][${ATTR_F
 const SELECTOR_FORM_SUBMIT = `[${ATTR_SUBMIT}]`;
 const SELECTOR_VALIDATE = `[${ATTR_VALIDATE}]`;
 const SELECTOR_LOADING = `#loading, [${ATTR_LOADING}]`;
+
+/** ローディング表示後に送信を実行するまでの待ち時間（ms）。描画反映のための猶予 */
+const SUBMIT_LOADING_DELAY_MS = 1000;
 
 const DEFAULT_ERROR_CLASS = 'is_error';
 
@@ -933,6 +947,24 @@ const toggleLoading = (isVisible) => {
 };
 
 /**
+ * 送信ボタンにローディング起動属性があるか
+ * @param {Element|null} submitBtn
+ * @returns {boolean}
+ */
+const shouldShowLoadingOnSubmit = (submitBtn) =>
+  submitBtn instanceof HTMLElement && submitBtn.hasAttribute(ATTR_SHOW_LOADING);
+
+/**
+ * ローディング表示後にコールバックを実行（描画反映のための遅延付き）
+ * @param {() => void} onReady
+ * @returns {void}
+ */
+const runAfterLoadingShown = (onReady) => {
+  toggleLoading(true);
+  window.setTimeout(onReady, SUBMIT_LOADING_DELAY_MS);
+};
+
+/**
  * サーバーエラー領域を初期メッセージに戻す
  * @param {HTMLElement|null} serverError
  * @returns {void}
@@ -1104,10 +1136,9 @@ const submitWordPressCf7Form = (formRoot, submitBtn = null) => {
     searchRoot.querySelector('input.wpcf7-submit, input[type="submit"], button[type="submit"]');
   if (target instanceof HTMLElement) {
     // 参照元実装と同様に、ローディング表示後に少し遅らせて送信
-    toggleLoading(true);
-    window.setTimeout(() => {
+    runAfterLoadingShown(() => {
       target.click();
-    }, 1000);
+    });
     return;
   }
   if (cf7Form instanceof HTMLFormElement) {
@@ -1171,10 +1202,21 @@ const handleValidationSuccessForWordPressCf7 = async (form, submitBtn) => {
  * @returns {Promise<void>}
  */
 const handleValidationSuccessForExternalService = async (form, submitBtn, useRecaptcha) => {
+  const showLoading = shouldShowLoadingOnSubmit(submitBtn);
+
   if (window.FormSubmitHandler?.submitForm) {
+    if (showLoading) toggleLoading(true);
     await window.FormSubmitHandler.submitForm(form, submitBtn, useRecaptcha);
     return;
   }
+
+  if (showLoading) {
+    runAfterLoadingShown(() => {
+      form.submit();
+    });
+    return;
+  }
+
   form.submit();
 };
 
@@ -1283,56 +1325,41 @@ const initFileInputUi = (form) => {
       fileInput.id = `formFileInput${index + 1}`;
     }
 
-    const fileWrap = document.createElement('div');
-    fileWrap.className = 'bl_form_fileWrap';
+    const fileWrapper = item.querySelector(`[${ATTR_FILE_WRAPPER}]`);
+    const selected = item.querySelector(`[${ATTR_FILE_SELECTED}]`);
+    const fileName = item.querySelector(`[${ATTR_FILE_NAME}]`);
+    const removeBtn = item.querySelector(`[${DATA_ATTR.ACTION}="${ACTION_REMOVE_FILE}"]`);
 
-    const fileLabel = document.createElement('label');
-    fileLabel.className = 'bl_form_fileLabel';
-    fileLabel.setAttribute('for', fileInput.id);
-    fileLabel.textContent = 'ファイルを選択';
-
-    const fileName = document.createElement('span');
-    fileName.className = 'bl_form_fileName';
-    fileName.textContent = 'ファイルが選択されていません';
-    fileName.style.display = 'none';
-
-    const fileTrash = document.createElement('button');
-    fileTrash.type = 'button';
-    fileTrash.className = 'bl_form_fileTrash';
-    fileTrash.textContent = '削除';
-    fileTrash.style.display = 'none';
-
+    /**
+     * 選択済みファイル表示を同期
+     * @returns {void}
+     */
     const updateFileUi = () => {
       const selectedFile = fileInput.files && fileInput.files[0];
-      if (selectedFile) {
-        fileName.textContent = selectedFile.name;
-        fileName.style.display = 'inline-block';
-        fileTrash.style.display = 'inline-block';
-        return;
+      const hasFile = Boolean(selectedFile);
+      if (fileName instanceof HTMLElement) {
+        fileName.textContent = hasFile ? selectedFile.name : '';
       }
-      fileName.textContent = 'ファイルが選択されていません';
-      fileName.style.display = 'none';
-      fileTrash.style.display = 'none';
+      if (selected instanceof HTMLElement) {
+        selected.hidden = !hasFile;
+      }
+      if (fileWrapper instanceof HTMLElement) {
+        fileWrapper.classList.toggle(CLASS_UPLOADED, hasFile);
+      }
     };
 
     fileInput.addEventListener('change', updateFileUi);
-    fileTrash.addEventListener('click', () => {
-      fileInput.value = '';
-      fileInput.dispatchEvent(new Event('input', { bubbles: true }));
-      fileInput.dispatchEvent(new Event('change', { bubbles: true }));
-      updateFileUi();
-    });
-
-    // ネイティブinputは隠し、カスタムボタンから選択させる
-    fileInput.style.display = 'none';
-
-    fileWrap.append(fileLabel, fileName, fileTrash);
-    const fileWrapper = item.querySelector(`[${ATTR_FILE_WRAPPER}]`);
-    if (fileWrapper instanceof HTMLElement) {
-      fileWrapper.append(fileWrap);
-    } else {
-      item.append(fileWrap);
+    if (removeBtn instanceof HTMLElement) {
+      removeBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        fileInput.value = '';
+        fileInput.dispatchEvent(new Event('input', { bubbles: true }));
+        fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+        updateFileUi();
+      });
     }
+
     fileInput.setAttribute(ATTR_FILE_UI_BOUND, 'true');
     updateFileUi();
   });

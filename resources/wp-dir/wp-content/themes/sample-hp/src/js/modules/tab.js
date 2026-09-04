@@ -4,6 +4,7 @@
  * - [data-tab-trigger] [data-tab-content] [data-tab] は参照用。アクティブは is_active（CSS で表示・フェード）
  * - ボタン等: data-tab-trigger + data-action="tab.select" + data-tab（クリックで切替）
  * - ラジオ: input[type="radio"] に上記属性を付与（change / クリックで切替、同一 name で checked を同期）
+ * - 入れ子可。コンテンツ自身が内側の tab ルートでも、親グループのコンテンツとして扱う
  ************************************************************/
 
 import { DATA_ATTR, STATE_CLASSES } from '../constans/global.js';
@@ -22,6 +23,28 @@ const SELECTOR_TRIGGER = `[${ATTR_TAB_TRIGGER}]`;
 const SELECTOR_CONTENT = `[${ATTR_TAB_CONTENT}]`;
 
 /**
+ * 要素が属する直近の tab ルートを返す
+ * 要素自身が tab ルート（data-tab-content と data-module="tab" の兼任）なら親ルートを見る
+ * @param {Element} el
+ * @returns {Element | null}
+ */
+const getClosestTabRoot = (el) => {
+  if (el.matches(SELECTOR_ROOT)) {
+    return el.parentElement?.closest(SELECTOR_ROOT) ?? null;
+  }
+  return el.closest(SELECTOR_ROOT);
+};
+
+/**
+ * 入れ子の tab モジュールに属さない要素だけを返す
+ * @param {Element} root
+ * @param {string} selector
+ * @returns {Element[]}
+ */
+const getOwnTabEls = (root, selector) =>
+  [...root.querySelectorAll(selector)].filter((el) => getClosestTabRoot(el) === root);
+
+/**
  * ラジオトリガーかどうか
  * @param {Element} el
  * @returns {boolean}
@@ -34,8 +57,7 @@ const isRadioTrigger = (el) => el instanceof HTMLInputElement && el.type === 'ra
  * @param {Element} activeEl
  */
 const syncTriggers = (root, activeEl) => {
-  const triggers = root.querySelectorAll(SELECTOR_TRIGGER);
-
+  const triggers = getOwnTabEls(root, SELECTOR_TRIGGER);
   if (isRadioTrigger(activeEl)) {
     triggers.forEach((t) => {
       t.classList.remove(STATE_CLASSES.ACTIVE);
@@ -60,18 +82,17 @@ const syncTriggers = (root, activeEl) => {
 
 /**
  * 初期表示に使うトリガー
- * @param {Element} root
- * @param {NodeListOf<Element>} triggers
+ * @param {Element[]} triggers
  * @returns {Element | null}
  */
-const getInitialTrigger = (root, triggers) => {
-  const checkedRadio = root.querySelector(`${SELECTOR_TRIGGER}[type="radio"]:checked`);
+const getInitialTrigger = (_root, triggers) => {
+  const checkedRadio = triggers.find((t) => isRadioTrigger(t) && t.checked);
   if (checkedRadio instanceof Element) {
     return checkedRadio;
   }
 
-  const presetActive = root.querySelector(
-    `${SELECTOR_TRIGGER}.${STATE_CLASSES.ACTIVE}:not([type="radio"])`
+  const presetActive = triggers.find(
+    (t) => t.classList.contains(STATE_CLASSES.ACTIVE) && !isRadioTrigger(t)
   );
   if (presetActive instanceof Element) {
     return presetActive;
@@ -89,10 +110,13 @@ const selectTab = (root, el) => {
   const targetTab = el.getAttribute(ATTR_TAB);
   if (!targetTab) return;
 
-  const newContent = root.querySelector(`${SELECTOR_CONTENT}[${ATTR_TAB}="${targetTab}"]`);
+  const contents = getOwnTabEls(root, SELECTOR_CONTENT);
+  const newContent = contents.find((content) => content.getAttribute(ATTR_TAB) === targetTab);
   if (!newContent || newContent.classList.contains(STATE_CLASSES.ACTIVE)) return;
 
-  const currentContent = root.querySelector(`${SELECTOR_CONTENT}.${STATE_CLASSES.ACTIVE}`);
+  const currentContent = contents.find((content) =>
+    content.classList.contains(STATE_CLASSES.ACTIVE)
+  );
   if (currentContent) currentContent.classList.remove(STATE_CLASSES.ACTIVE);
   newContent.classList.add(STATE_CLASSES.ACTIVE);
 
@@ -104,14 +128,16 @@ const selectTab = (root, el) => {
  * @param {Element} root
  */
 const initTabGroup = (root) => {
-  const triggers = root.querySelectorAll(SELECTOR_TRIGGER);
-  const contents = root.querySelectorAll(SELECTOR_CONTENT);
+  const triggers = getOwnTabEls(root, SELECTOR_TRIGGER);
+  const contents = getOwnTabEls(root, SELECTOR_CONTENT);
   if (!triggers.length || !contents.length) return;
 
   const hasRadioTriggers = [...triggers].some((t) => isRadioTrigger(t));
 
   delegate(root, 'click', {
     'tab.select': (e, el) => {
+      if (getClosestTabRoot(el) !== root) return;
+
       if (isRadioTrigger(el)) {
         selectTab(root, el);
         return;
@@ -128,7 +154,7 @@ const initTabGroup = (root) => {
       const target = e.target;
       if (!(target instanceof HTMLInputElement)) return;
       if (!isRadioTrigger(target) || !target.matches(SELECTOR_TRIGGER)) return;
-      if (!root.contains(target)) return;
+      if (getClosestTabRoot(target) !== root) return;
       selectTab(root, target);
     });
   }

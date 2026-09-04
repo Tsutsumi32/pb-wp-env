@@ -7,8 +7,8 @@
 /******************************************************************
 * font フォントスタイルを設定する
 * @param $_size サイズ
-* @param $_line 行間（数値なら px 相当値 ÷ font-size、% 付きなら ÷ 100）
-* @param $_space 文字間
+* @param $_line 行間（`normal` / 数値なら px 相当値 ÷ font-size、% 付きなら ÷ 100）
+* @param $_space 文字間（単位なし/% = PERCENT→em、px = PIXELS→s()）
 * @param $_weight 太さ（$_key 未指定時は CSS 数値。$_key 指定時は $text-styles の weight キーで上書き）
 * @param $_family フォント（null 時は $base_font。$_key 指定時に渡すと font-family を上書き）
 * @param $_font-key $font-configs のキー（$_key 指定時の get-font-weight 用。null 時は $base_font_key）
@@ -16,6 +16,7 @@
 * @param $_max-size font-size の上限（省略時は上限なし）
 * @param $_use-sh true のとき font-size に sh() を使用（横長端末で lvh 基準に縮小）
 * @param $_aspect-ratio sh() 用の比率基準（幅/高さ）。省略時は --aspect-ratio-threshold
+* @param $_min-height sh() 用の画面高さフロア（単位なし px 相当）。省略時は $style-settings の 'min-height' に従う
 * @param $_key Figma テキストスタイルキー（指定時は size/line/space/weight をマップから取得）
 * 下限の適用範囲は $font-size-min-media で制御（大きい画面側のみ適用）
 *******************************************************************/
@@ -24,10 +25,11 @@
   $_min-size,
   $_max-size: null,
   $_use-sh: false,
-  $_aspect-ratio: null
+  $_aspect-ratio: null,
+  $_min-height: null
 ) {
   @if $_use-sh {
-    font-size: sh($_size, $_min-size, $_max-size, $_aspect-ratio);
+    font-size: sh($_size, $_min-size, $_max-size, $_aspect-ratio, $_min-height);
   } @else {
     font-size: s($_size, $_min-size, $_max-size);
   }
@@ -38,30 +40,70 @@
   $_min-size: $font-size-min,
   $_max-size: null,
   $_use-sh: false,
-  $_aspect-ratio: null
+  $_aspect-ratio: null,
+  $_min-height: null
 ) {
   @if $font-size-min-media == null {
-    @include _font-set-font-size($_size, $_min-size, $_max-size, $_use-sh, $_aspect-ratio);
+    @include _font-set-font-size(
+      $_size,
+      $_min-size,
+      $_max-size,
+      $_use-sh,
+      $_aspect-ratio,
+      $_min-height
+    );
   } @else if $media-query-strategy == 'pc-first' {
     // デフォルト（大きい画面側）に下限あり → 境界未満で下限なし
-    @include _font-set-font-size($_size, $_min-size, $_max-size, $_use-sh, $_aspect-ratio);
+    @include _font-set-font-size(
+      $_size,
+      $_min-size,
+      $_max-size,
+      $_use-sh,
+      $_aspect-ratio,
+      $_min-height
+    );
 
     @include media(get-breakpoint-key($font-size-min-media)) {
-      @include _font-set-font-size($_size, null, $_max-size, $_use-sh, $_aspect-ratio);
+      @include _font-set-font-size(
+        $_size,
+        null,
+        $_max-size,
+        $_use-sh,
+        $_aspect-ratio,
+        $_min-height
+      );
     }
   } @else {
     // sp-first: デフォルト（小さい画面側）は下限なし → 境界以上で下限あり
-    @include _font-set-font-size($_size, null, $_max-size, $_use-sh, $_aspect-ratio);
+    @include _font-set-font-size(
+      $_size,
+      null,
+      $_max-size,
+      $_use-sh,
+      $_aspect-ratio,
+      $_min-height
+    );
 
     @include media(get-breakpoint-key($font-size-min-media)) {
-      @include _font-set-font-size($_size, $_min-size, $_max-size, $_use-sh, $_aspect-ratio);
+      @include _font-set-font-size(
+        $_size,
+        $_min-size,
+        $_max-size,
+        $_use-sh,
+        $_aspect-ratio,
+        $_min-height
+      );
     }
   }
 }
 
 @function _font-resolve-line-height($_line, $_size) {
+  @if $_line == normal {
+    @return normal;
+  }
+
   @if meta.type-of($_line) != 'number' {
-    @error "font(): line-height must be a number, got #{meta.type-of($_line)}.";
+    @error "font(): line-height must be a number or 'normal', got #{meta.type-of($_line)}.";
   }
 
   @if math.unit($_line) == '%' {
@@ -73,6 +115,29 @@
   }
 
   @error "font(): line-height unit must be unitless (absolute) or '%', got '#{math.unit($_line)}'.";
+}
+
+// letter-spacing:
+// - 単位なし / % … Figma PERCENT（例: 3 → 0.03em、3% → 0.03em）
+// - px … Figma PIXELS（例: 1.8px → s(1.8)。フォントサイズ比ではなくレイアウトスケール）
+@function _font-resolve-letter-spacing($_space) {
+  @if meta.type-of($_space) != 'number' {
+    @error "font(): letter-spacing must be a number, got #{meta.type-of($_space)}.";
+  }
+
+  @if math.unit($_space) == 'px' {
+    @return s(math.div($_space, 1px));
+  }
+
+  @if math.unit($_space) == '%' {
+    @return math.div($_space, 100%) * 1em;
+  }
+
+  @if math.unit($_space) == '' {
+    @return calc(#{$_space} / #{$font-letter-spacing-unit} * 1em);
+  }
+
+  @error "font(): letter-spacing unit must be unitless (percent), '%', or 'px', got '#{math.unit($_space)}'.";
 }
 
 @function _font-get-responsive-value($_value, $_breakpoint-key) {
@@ -115,7 +180,8 @@
   $_min-size: $font-size-min,
   $_max-size: null,
   $_use-sh: false,
-  $_aspect-ratio: null
+  $_aspect-ratio: null,
+  $_min-height: null
 ) {
   @if meta.type-of($_size) == 'map' {
     $_size-default: map.get($_size, 'default');
@@ -131,7 +197,8 @@
       $_min-size,
       $_max-size,
       $_use-sh,
-      $_aspect-ratio
+      $_aspect-ratio,
+      $_min-height
     );
     line-height: _font-resolve-line-height($_line-default, $_size-default);
 
@@ -145,14 +212,22 @@
             $_min-size,
             $_max-size,
             $_use-sh,
-            $_aspect-ratio
+            $_aspect-ratio,
+            $_min-height
           );
           line-height: _font-resolve-line-height($_line-value, $_size-value);
         }
       }
     }
   } @else {
-    @include _font-apply-font-size($_size, $_min-size, $_max-size, $_use-sh, $_aspect-ratio);
+    @include _font-apply-font-size(
+      $_size,
+      $_min-size,
+      $_max-size,
+      $_use-sh,
+      $_aspect-ratio,
+      $_min-height
+    );
     line-height: _font-resolve-line-height($_line, $_size);
   }
 }
@@ -169,6 +244,7 @@
   $_max-size: null,
   $_use-sh: false,
   $_aspect-ratio: null,
+  $_min-height: null,
   $_key: null
 ) {
   @if $_key != null {
@@ -179,20 +255,29 @@
     $_space-value: map.get($_text-style, 'space');
     $_font-config-key: _font-resolve-config-key($_font-key);
 
-    @if $_weight-key == null or $_size-value == null or $_line-value == null or $_space-value == null {
+    @if $_weight-key ==
+      null or
+      $_size-value ==
+      null or
+      $_line-value ==
+      null or
+      $_space-value ==
+      null
+    {
       @error "font(): text style '#{$_key}' must include 'weight', 'size', 'line', and 'space'.";
     }
 
     font-family: _font-resolve-family($_family, $_font-key);
     font-weight: get-font-weight($_font-config-key, $_weight-key);
-    letter-spacing: calc($_space-value / $font-letter-spacing-unit * 1em);
+    letter-spacing: _font-resolve-letter-spacing($_space-value);
     @include _font-apply-size-line(
       $_size-value,
       $_line-value,
       $_min-size,
       $_max-size,
       $_use-sh,
-      $_aspect-ratio
+      $_aspect-ratio,
+      $_min-height
     );
   } @else {
     @if $_size == null or $_line == null or $_space == null {
@@ -201,14 +286,15 @@
 
     font-family: _font-resolve-family($_family, $_font-key);
     font-weight: $_weight;
-    letter-spacing: calc($_space / $font-letter-spacing-unit * 1em);
+    letter-spacing: _font-resolve-letter-spacing($_space);
     @include _font-apply-size-line(
       $_size,
       $_line,
       $_min-size,
       $_max-size,
       $_use-sh,
-      $_aspect-ratio
+      $_aspect-ratio,
+      $_min-height
     );
   }
 }

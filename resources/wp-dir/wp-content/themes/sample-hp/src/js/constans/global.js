@@ -76,7 +76,7 @@ export const CSS_VARS = Object.freeze({
 // ブレイクポイント（PCファースト・SCSS の $breakpoints と揃える (未満で判定)）
 // ----------------------------------------------------------
 export const BREAKPOINTS = Object.freeze({
-  TAB: 1200,
-  SP: 768,
-  SP_S: 570
+  TAB: 1024,
+  SP: 744,
+  SP_S: 600
 });

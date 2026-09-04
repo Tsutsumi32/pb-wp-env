@@ -54,14 +54,24 @@
   @return $_core;
 }
 
-@function _sh-lvh-core($_s-core, $_aspect-ratio: null) {
+@function _sh-lvh-core($_s-core, $_aspect-ratio: null, $_min-height: null) {
+  // 呼び出し単位の $_min-height 指定時は全体の --lvh-vw-ratio を使わず、この高さで打ち止め
+  $_ratio-expr: 'var(--lvh-vw-ratio)';
+
+  @if $_min-height != null {
+    $_min-height-stripped: strip-unit($_min-height);
+    $_ratio-expr: 'max(100lvh, #{$_min-height-stripped}px) / 100vw';
+  }
+
   @if $_aspect-ratio != null {
     $_threshold: _aspect-ratio-threshold-value($_aspect-ratio);
 
-    @return string.unquote('calc(#{$_s-core} * #{$_threshold} * var(--lvh-vw-ratio))');
+    @return string.unquote('calc(#{$_s-core} * #{$_threshold} * #{$_ratio-expr})');
   }
 
-  @return string.unquote('calc(#{$_s-core} * var(--aspect-ratio-threshold) * var(--lvh-vw-ratio))');
+  @return string.unquote(
+    'calc(#{$_s-core} * var(--aspect-ratio-threshold) * #{$_ratio-expr})'
+  );
 }
 
 /******************************************************************
@@ -96,22 +106,36 @@
 *
 * 横長 (100vw / 100lvh > aspect-ratio) のとき lvh 側が小さくなり縮小する。
 * 縦長のとき lvh 側は s() 以上になるため、s() が上限として維持される。
+* --lvh-vw-ratio は通常 100lvh / 100vw。
+* $style-settings の 'min-height' 指定時は
+* max(100lvh, min-height) / 100vw となり、その高さ未満ではそれ以上縮めない
+* （コンテンツがビューポートを超える場合はブラウザのスクロールに任せる）。
+* 呼び出しの $_min-height 指定時は、その値で高さフロアを個別指定する
+* （全体の --lvh-vw-ratio は使わない）。$_min（算出値の下限）とは別物。
 * calc() 内に clamp をネストしない（ブラウザが不正値と判定するため）。
 *
 * @param $_number 数値（デザイン上のスケール値）
-* @param $_min 省略可。s() と同様
+* @param $_min 省略可。s() と同様（算出結果の下限）
 * @param $_max 省略可。s() と同様
 * @param $_aspect-ratio 省略可。比率基準（幅/高さ）
 *   - 数値: 375 / 667 の結果（例: 0.562）
 *   - リスト: (375, 667)
 *   省略時は CSS 変数 --aspect-ratio-threshold を使用
+* @param $_min-height 省略可。この算出だけに適用する画面高さフロア（単位なし px 相当）
 *  例) height: sh(600);
 *  例) gap: sh(40, null, null, (16, 9));
+*  例) height: sh(600, $_min-height: 1000);
 *******************************************************************/
-@function sh($_number, $_min: null, $_max: null, $_aspect-ratio: null) {
+@function sh(
+  $_number,
+  $_min: null,
+  $_max: null,
+  $_aspect-ratio: null,
+  $_min-height: null
+) {
   $_n: strip-unit($_number);
   $_s-core: calc(#{$_n} * var(--liq-unit));
-  $_lvh-core: _sh-lvh-core($_s-core, $_aspect-ratio);
+  $_lvh-core: _sh-lvh-core($_s-core, $_aspect-ratio, $_min-height);
   $_core: string.unquote('min(#{$_s-core}, #{$_lvh-core})');
 
   @return _scale-limits($_core, $_min, $_max);

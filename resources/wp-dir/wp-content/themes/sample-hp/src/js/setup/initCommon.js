@@ -9,7 +9,7 @@ import { selectActiveState } from '../features/selectActiveState.js';
 import { initImgSaveGuards } from './tasks/imgSaveGuards.js';
 import { initMainMinHeightToViewportFooter } from './tasks/mainMinHeightToViewportFooter.js';
 import { initScrollbarWidthSync } from './tasks/scrollbarWidthSync.js';
-import { initSmoothAnchorLink } from './tasks/smoothAnchorLink.js';
+import { initSmoothAnchorLink, initHashScrollOnLoad } from './tasks/smoothAnchorLink.js';
 import { initViewportUnitSync } from './tasks/viewportUnitSync.js';
 import { duplicateSibling } from '../features/duplicateSibling.js';
 
@@ -29,6 +29,8 @@ export async function initCommon() {
 
   // アンカーリンク
   initSmoothAnchorLink();
+  // 画面遷移を伴うアンカーリンク（#hash 付きURLでの初回読み込み時）のスクロール調整
+  initHashScrollOnLoad();
 
   // 画像選択制御
   initImgSaveGuards();

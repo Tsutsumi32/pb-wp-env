@@ -24,10 +24,7 @@
 }
 
 .el_input {
-  @include neutralize-autofill(
-    get-color('background', 'canvas'),
-    get-color('text', 'base')
-  );
+  @include neutralize-autofill(get-color('background', 'canvas'), get-color('text', 'base'));
 }
 
 // /******************************************************************
@@ -413,14 +410,14 @@
 //   }
 
 //   &_lead {
-//     @include font($_key: 'paragraph/m');
+//     @include font($_key: 'body/m');
 //     margin: 0;
 //     color: get-color('text', 'default');
 //     text-align: center;
 //   }
 
 //   &_note {
-//     @include font($_key: 'etc/s');
+//     @include font($_key: 'label/s');
 //     margin: 0;
 //     color: get-color('text', 'muted');
 //     text-align: center;
@@ -448,7 +445,7 @@
 //   }
 
 //   &_name {
-//     @include font($_key: 'paragraph/m');
+//     @include font($_key: 'body/m');
 //     position: relative;
 //     z-index: 1;
 //     margin: 0;
@@ -458,7 +455,7 @@
 //   }
 
 //   &_delete {
-//     @include font($_key: 'etc/s');
+//     @include font($_key: 'label/s');
 //     position: relative;
 //     z-index: 1;
 //     margin: 0;

@@ -51,8 +51,19 @@
   $_base-value: _style-settings-base-value(map.get($_setting, 'base-size'));
   $_aspect-ratio-threshold: _style-settings-aspect-ratio-threshold($_setting);
   $_font-s-base-stripped: strip-unit($font-s-base);
+  $_min-height: map.get($_setting, 'min-height');
 
   --aspect-ratio-threshold: #{$_aspect-ratio-threshold};
+
+  // sh() 用。postcss-calc が各プロパティで除算できないため :root に集約
+  // min-height 指定時は 100lvh がその値未満でも換算高さをそこで打ち止め
+  @if $_min-height != null {
+    $_min-height-stripped: strip-unit($_min-height);
+
+    --lvh-vw-ratio: calc(max(100lvh, #{$_min-height-stripped}px) / 100vw);
+  } @else {
+    --lvh-vw-ratio: calc(100lvh / 100vw);
+  }
 
   @if $_type == 'liquid' {
     $_viewport-base-stripped: strip-unit(map.get($_setting, 'viewport-base'));
@@ -85,6 +96,7 @@
 *   - --liq-unit                 : s() / sh() の横幅基準
 *   - --aspect-ratio-threshold   : sh() の比率基準（幅/高さ）
 *   - --lvh-vw-ratio             : sh() の lvh/vw 換算係数
+*     （'min-height' 指定時は max(100lvh, min-height) / 100vw）
 * sh() の lvh 換算は s() の値 × 比率 × var(--lvh-vw-ratio) で算出する
 * 各設定方法については、変数$style-settingsの箇所に記載する
 * @example
@@ -92,7 +104,7 @@
 *******************************************************************/
 @mixin style-settings-vars() {
   :root {
-    // lvh/vw の比率（sh() 用。postcss-calc が各プロパティで除算できないため :root に集約）
+    // type: none 継承時のフォールバック
     --lvh-vw-ratio: calc(100lvh / 100vw);
 
     $_default-key: list.nth(map.keys($style-settings), 1);

@@ -22,6 +22,7 @@
   display: none !important;
 }
 
+// スクリーンリーダー考慮hidden
 .hp_visuallyHidden {
   position: absolute !important;
   width: 1px !important;
@@ -101,6 +102,65 @@ $_keys-length: list.length($_bp-keys-list);
       .hp_hidden_#{$_key1}_#{$_key2} {
         @include media($_key1, $_key2) {
           display: none !important;
+        }
+      }
+    }
+  }
+}
+
+
+/* visible ブレイクポイントベースの表示クラス（指定範囲のみ表示）
+----------------------------------------------------------------- */
+/// ブレイクポイントのキー名を使って、表示する領域を範囲指定で指定
+/// 基本は display: none とし、指定範囲内でのみ UA 既定の display に戻す（revert）
+/// クラス名の形式:
+///   .visible_default_{breakpoint-key} → デフォルト領域から指定ブレイクポイントまで表示
+///   .visible_{breakpoint-key}_        → 指定ブレイクポイント以降のみ表示
+///   .visible_{breakpoint-key1}_{breakpoint-key2} → 2つのブレイクポイント間のみ表示
+///
+/// 使用例:
+/// sp-firstの場合:
+///   .visible_default_tab → 0~tab未満のみ表示（sp時のみ表示）
+///   .visible_tab_        → tab以上のみ表示
+///   .visible_tab_pc      → tab以上、pc未満のみ表示
+///
+/// pc-firstの場合:
+///   .visible_default_tab → tab以上のみ表示（pc時のみ表示）
+///   .visible_sp_         → sp未満のみ表示（sp時のみ表示）
+///   .visible_tab_sp      → tab未満、sp以上のみ表示（tab帯のみ表示）
+// デフォルト領域から指定ブレイクポイントまでの表示クラスを生成
+@each $_breakpoint-key in map.keys($breakpoints) {
+  .hp_visible_default_#{$_breakpoint-key} {
+    display: none !important;
+
+    @include media('default', $_breakpoint-key) {
+      display: revert !important;
+    }
+  }
+}
+
+// 指定ブレイクポイント以降のみ表示するクラスを生成
+@each $_breakpoint-key in map.keys($breakpoints) {
+  .hp_visible_#{$_breakpoint-key}_ {
+    display: none !important;
+
+    @include media($_breakpoint-key) {
+      display: revert !important;
+    }
+  }
+}
+
+// 範囲指定の表示クラスを生成（2つのブレイクポイントの組み合わせ）
+@for $i from 1 through $_keys-length {
+  $_key1: list.nth($_bp-keys-list, $i);
+  @if $i < $_keys-length {
+    @for $j from ($i + 1) through $_keys-length {
+      $_key2: list.nth($_bp-keys-list, $j);
+      .hp_visible_#{$_key1}_#{$_key2} {
+        display: none !important;
+
+        @include media($_key1, $_key2) {
+          display: revert !important;
         }
       }
     }

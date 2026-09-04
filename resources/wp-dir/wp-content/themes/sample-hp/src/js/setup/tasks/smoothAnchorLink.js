@@ -1,8 +1,20 @@
 /************************************************************
  * アンカーリンクスムーススクロール（Lenis 未利用時のフォールバック）
  * ページ内のアンカーリンクをクリックした際にスムーススクロールを実行
- * 画面遷移を伴う場合の位置調整は html の scroll-padding-top を参照
+ * 画面遷移を伴う場合は GSAP ScrollSmoother がコンテンツを position:fixed +
+ * transform で仮想スクロールするため、ブラウザ標準のハッシュジャンプが機能しない。
+ * そのため initHashScrollOnLoad でページ読み込み後に同様の位置調整を行う。
  ************************************************************/
+
+import { ScrollSmoother } from 'gsap/ScrollSmoother';
+import { refreshScrollTrigger } from '../../features/gsap.js';
+import { windowLoad } from '../../lifecycle/windowLoad.js';
+
+// ---------------------------------------------------------------------------
+// data 属性（参照するものは定数で一覧化）
+// ---------------------------------------------------------------------------
+/** ハッシュ付き遷移で、標準ジャンプ回避のために退避したターゲットID */
+const ATTR_PENDING_HASH = 'data-gsap-pending-hash';
 
 // ---------------------------------------------------------------------------
 // 調整用定数
@@ -27,6 +39,77 @@ export function initSmoothAnchorLink() {
 
   isInitialized = true;
   document.addEventListener('click', handleAnchorClick);
+}
+
+/**
+ * 画面遷移を伴うアンカーリンク（他ページから `#section` 付きURLで遷移した場合）の初期スクロール
+ * GSAP ScrollSmoother 初期化後はブラウザ標準のハッシュジャンプが機能しない（Safari では衝突して
+ * スクロール不能になる）ため、header のインライン script で hash を退避し、
+ * 画像等の読み込み完了・レイアウト確定後に smoother 経由で移動する
+ */
+export async function initHashScrollOnLoad() {
+  const targetId = consumePendingHashTargetId();
+  if (!targetId) {
+    return;
+  }
+
+  const targetElement = document.getElementById(targetId);
+  if (!targetElement) {
+    restoreHash(targetId);
+    return;
+  }
+
+  // 標準ジャンプや復元スクロールが残っている場合に備え、smoother 初期位置をトップへ戻す
+  window.scrollTo(0, 0);
+  ScrollSmoother.get()?.scrollTo(0, false);
+
+  await windowLoad();
+  refreshScrollTrigger();
+
+  smoothScrollTo(getHashScrollTargetY(targetElement));
+  restoreHash(targetId);
+}
+
+/**
+ * 退避済み hash、なければ location.hash からターゲットIDを取得して消費する
+ * @returns {string|null}
+ */
+function consumePendingHashTargetId() {
+  const pendingId = document.documentElement.getAttribute(ATTR_PENDING_HASH);
+  if (pendingId) {
+    document.documentElement.removeAttribute(ATTR_PENDING_HASH);
+    return pendingId;
+  }
+
+  return getHashTargetId(location.hash);
+}
+
+/**
+ * アドレスバーの hash をスクロールを起こさずに戻す
+ * @param {string} targetId
+ * @returns {void}
+ */
+function restoreHash(targetId) {
+  const nextUrl = `${location.pathname}${location.search}#${targetId}`;
+  const currentUrl = `${location.pathname}${location.search}${location.hash}`;
+  if (currentUrl === nextUrl) {
+    return;
+  }
+
+  history.replaceState(null, '', nextUrl);
+}
+
+/**
+ * URL の hash からターゲットIDを取得
+ * @param {string} hash - `location.hash`（`#` を含む）
+ * @returns {string|null}
+ */
+function getHashTargetId(hash) {
+  if (!hash || hash === '#' || hash === '#0') {
+    return null;
+  }
+
+  return decodeURIComponent(hash.slice(1));
 }
 
 /**
@@ -77,11 +160,6 @@ function getSamePageAnchorTargetId(href) {
       return null;
     }
 
-    const hash = linkUrl.hash;
-    if (!hash || hash === '#' || hash === '#0') {
-      return null;
-    }
-
     if (!isSamePagePathname(linkUrl.pathname, window.location.pathname)) {
       return null;
     }
@@ -90,7 +168,7 @@ function getSamePageAnchorTargetId(href) {
       return null;
     }
 
-    return decodeURIComponent(hash.slice(1));
+    return getHashTargetId(linkUrl.hash);
   } catch {
     return null;
   }
@@ -117,6 +195,16 @@ function normalizePathname(pathname) {
 }
 
 /**
+ * html の scroll-padding-top（ヘッダー高さ + 余白）を取得
+ * @returns {number}
+ */
+function getScrollPaddingTop() {
+  const { scrollPaddingTop } = window.getComputedStyle(document.documentElement);
+  const scrollPadding = parseFloat(scrollPaddingTop);
+  return Number.isFinite(scrollPadding) ? scrollPadding : 0;
+}
+
+/**
  * アンカー要素のスクロール基準位置を取得
  * 要素上部 + padding-block-start が scroll-padding-top の位置に来る Y 座標
  * @param {HTMLElement} element - 基準要素
@@ -126,13 +214,22 @@ export function getAnchorTriggerScrollY(element) {
   const elementRect = element.getBoundingClientRect();
   const computedStyle = window.getComputedStyle(element);
   const paddingTop = parseFloat(computedStyle.getPropertyValue('padding-block-start'));
-  const currentScrollY = window.scrollY;
-  const { scrollPaddingTop } = window.getComputedStyle(document.documentElement);
-  const scrollPadding = parseFloat(scrollPaddingTop);
-  const offset = Number.isFinite(scrollPadding) ? scrollPadding : 0;
   const paddingBlockStart = Number.isFinite(paddingTop) ? paddingTop : 0;
 
-  return currentScrollY + elementRect.top + paddingBlockStart - offset;
+  return window.scrollY + elementRect.top + paddingBlockStart - getScrollPaddingTop();
+}
+
+/**
+ * 画面遷移時のスクロール基準位置を取得
+ * html の scroll-padding-top に純粋に合わせ、要素上部が scroll-padding-top の位置に来る Y 座標
+ * （padding-block-start は考慮しない。クリック時の getAnchorTriggerScrollY とは基準が異なる）
+ * @param {HTMLElement} element - 基準要素
+ * @returns {number}
+ */
+export function getHashScrollTargetY(element) {
+  const elementRect = element.getBoundingClientRect();
+
+  return window.scrollY + elementRect.top - getScrollPaddingTop();
 }
 
 /**
@@ -162,6 +259,13 @@ export function smoothScrollTo(
   targetPosition,
   duration = SMOOTH_ANCHOR_LINK_CONFIG.scrollDurationMs
 ) {
+  // GSAP ScrollSmoother 稼働中はその scrollTo に委譲（window.scrollTo の直接操作は内部処理と競合するため）
+  const smoother = ScrollSmoother.get();
+  if (smoother) {
+    smoother.scrollTo(targetPosition, true);
+    return;
+  }
+
   const startPosition = window.scrollY;
   const distance = targetPosition - startPosition;
   let startTime = null;

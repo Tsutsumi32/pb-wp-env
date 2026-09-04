@@ -6,13 +6,14 @@
 * content-space コンテンツ余白を設定する
 * @param $_type 大きさのタイプ（_variables.scssの$content-spaceで定義）
 * @param $_margin padding(pd)・margin(mg)
+* @param $_important オプション: '!important'を付与する場合に指定
 * $media-query-strategy で 'sp-first' または 'pc-first' を切り替え可能
 *   - 'sp-first': SPをデフォルト、大きい画面で上書き
 *   - 'pc-first': PCをデフォルト、小さい画面で上書き
 *
 * $content-spaceのキー名は$breakpointsのキー名と統一されています
 *******************************************************************/
-@mixin content-space($_type: 'md', $_margin: 'pd') {
+@mixin content-space($_type: 'md', $_margin: 'pd', $_important: '') {
   // $content-spaceから指定されたタイプのサイズを取得
   @if not map.has-key($content-space, $_type) {
     @error "content-space(): 指定されたタイプ '#{$_type}' は $content-space に定義されていません。";
@@ -28,9 +29,9 @@
 
   // デフォルト値を設定（メディアクエリなし）
   @if $_margin == 'mg' {
-    margin-block: s($_size-default);
+    margin-block: s($_size-default) #{$_important};
   } @else {
-    padding-block: s($_size-default);
+    padding-block: s($_size-default) #{$_important};
   }
 
   // 上書き順は $content-space の定義順を採用する
@@ -39,9 +40,9 @@
     @if $_breakpoint-key != 'default' {
       @include media($_breakpoint-key) {
         @if $_margin == 'mg' {
-          margin-block: s($_size-value);
+          margin-block: s($_size-value) #{$_important};
         } @else {
-          padding-block: s($_size-value);
+          padding-block: s($_size-value) #{$_important};
         }
       }
     }

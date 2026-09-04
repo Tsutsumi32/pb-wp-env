@@ -1,7 +1,12 @@
 /************************************************************
  * GSAP関連汎用処理
  ************************************************************/
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { ScrollSmoother } from 'gsap/ScrollSmoother';
 import { BREAKPOINTS, STATE_CLASSES } from '../constans/global.js';
+
+gsap.registerPlugin(ScrollTrigger, ScrollSmoother);
 
 // ---------------------------------------------------------------------------
 // data 属性（参照するものは定数で一覧化）
@@ -15,10 +20,16 @@ const ATTR_SMOOTH_WRAPPER = 'data-gsap-smooth-wrapper';
 const ATTR_SMOOTH_CONTENT = 'data-gsap-smooth-content';
 /** ScrollSmoother の適用スコープ（例: page） */
 const ATTR_SMOOTH_SCOPE = 'data-gsap-smooth-scope';
+/** 内側スクロールを許可する要素（プライバシーポリシー欄など） */
+const ATTR_NESTED_SCROLL = 'data-gsap-nested-scroll';
 
 const SELECTOR_SMOOTH_ROOT = `[${ATTR_SMOOTH_ROOT}]`;
 const SELECTOR_SMOOTH_WRAPPER = `[${ATTR_SMOOTH_WRAPPER}]`;
 const SELECTOR_SMOOTH_CONTENT = `[${ATTR_SMOOTH_CONTENT}]`;
+const SELECTOR_NESTED_SCROLL = `[${ATTR_NESTED_SCROLL}]`;
+
+/** ネイティブの内側スクロールを持つフォーム控件 */
+const NESTED_SCROLL_TAGS = new Set(['TEXTAREA', 'SELECT']);
 
 // 横スクロール連動
 /** ScrollTrigger の trigger */
@@ -86,15 +97,29 @@ const isSpViewport = () => window.innerWidth < BREAKPOINTS.SP;
  * @property {number} [smooth]
  * @property {number} [smoothTouch]
  * @property {boolean} [effects]
- * @property {boolean} [normalizeScroll]
+ * @property {boolean | { allowNestedScroll?: boolean | string | ((element: Element) => boolean) }} [normalizeScroll]
  */
+
+/**
+ * ホイール／タッチをページ全体ではなく内側スクロールへ渡してよいか
+ * - `[data-gsap-nested-scroll]` 配下（プライバシーポリシー欄など）
+ * - textarea / select（ネイティブの内側スクロール）
+ * Safari では overflow: hidden もネストスクロール扱いになるため true は使わない
+ * @param {Element} element
+ * @returns {boolean}
+ */
+const allowNestedScroll = (element) => {
+  if (!(element instanceof Element)) return false;
+  if (element.closest(SELECTOR_NESTED_SCROLL)) return true;
+  return NESTED_SCROLL_TAGS.has(element.tagName);
+};
 
 const DEFAULT_SMOOTH_CONFIG = {
   rootSelector: SELECTOR_SMOOTH_ROOT,
   smooth: 1.2,
   smoothTouch: 0.1,
   effects: true,
-  normalizeScroll: true,
+  normalizeScroll: { allowNestedScroll },
 };
 
 /**
@@ -125,12 +150,11 @@ export const resolveSmoothElements = (rootSelector = DEFAULT_SMOOTH_CONFIG.rootS
  * @returns {{ refresh: () => void, kill: () => void } | undefined}
  */
 export const initGsapScrollSmoother = (option = {}) => {
-  const ScrollSmoother = window.ScrollSmoother;
   const { viewport = GSAP_VIEWPORT.BOTH, ...smoothOption } = option;
   const config = { ...DEFAULT_SMOOTH_CONFIG, ...smoothOption };
   const smoothElements = resolveSmoothElements(config.rootSelector);
 
-  if (!ScrollSmoother || !smoothElements) {
+  if (!smoothElements) {
     return undefined;
   }
 
@@ -160,7 +184,7 @@ let isScrollTriggerResizeBound = false;
  * @returns {void}
  */
 export const refreshScrollTrigger = () => {
-  window.ScrollTrigger?.refresh();
+  ScrollTrigger.refresh();
 };
 
 /**
@@ -432,10 +456,7 @@ export const resolveGsapSectionHScrollMoveEase = (option = {}, ctx) => {
  * @returns {{ refresh: () => void, kill: () => void } | null}
  */
 export const createGsapSectionHScroll = (root, option = {}) => {
-  const gsap = window.gsap;
   const { viewport = GSAP_VIEWPORT.BOTH, onEnterSection, ...hscrollOption } = option;
-
-  if (!gsap) return null;
 
   const hScrollTrigger = root.querySelector(SELECTOR_HSCROLL_TRIGGER);
   const hScrollPin = root.querySelector(SELECTOR_HSCROLL_PIN);
@@ -537,8 +558,7 @@ export const getGsapHScrollSectionProgress = ({
   toIndex = 2,
   sectionSelector = SELECTOR_HSCROLL_SECTION,
 }) => {
-  const gsap = window.gsap;
-  if (!gsap || !horizontalRoot) return 0;
+  if (!horizontalRoot) return 0;
 
   const sections = gsap.utils.toArray(horizontalRoot.querySelectorAll(sectionSelector));
   const maxScroll = horizontalRoot.scrollWidth - window.innerWidth;
@@ -730,8 +750,7 @@ export const resolveGsapCardStackEase = (option, ctx) => {
  * @returns {import('gsap').core.Timeline | { refresh: () => void, kill: () => void } | null}
  */
 export const createGsapCardStack = (scope, option = {}) => {
-  const gsap = window.gsap;
-  if (!gsap || !scope) return null;
+  if (!scope) return null;
 
   const {
     viewport = GSAP_VIEWPORT.BOTH,
@@ -876,9 +895,8 @@ export const GSAP_DOM_MOVE_SELECTORS = {
  * @returns {object | null}
  */
 export const createGsapDomMoveController = (root, option = {}) => {
-  const gsap = window.gsap;
   const Flip = window.Flip;
-  if (!gsap || !Flip || typeof Flip.getState !== 'function' || !root) return null;
+  if (!Flip || typeof Flip.getState !== 'function' || !root) return null;
 
   const {
     viewport = GSAP_VIEWPORT.BOTH,

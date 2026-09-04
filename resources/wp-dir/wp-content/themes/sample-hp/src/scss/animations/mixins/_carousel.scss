@@ -42,18 +42,18 @@
   }
 }
 
-@mixin anim-carousel($_direction, $_transition) {
+@mixin anim-carousel($_direction, $_transition, $_delay: 0s) {
   @include allow-motion {
     @if $_direction == 'to-top' {
-      animation: carousel-to-top $_transition linear infinite normal;
+      animation: carousel-to-top $_transition linear infinite normal $_delay;
     } @else if $_direction == 'to-bottom' {
-      animation: carousel-to-bottom $_transition linear infinite normal;
+      animation: carousel-to-bottom $_transition linear infinite normal $_delay;
       position: relative;
       top: 100%;
     } @else if $_direction == 'to-left' {
-      animation: carousel-to-left $_transition linear infinite normal;
+      animation: carousel-to-left $_transition linear infinite normal $_delay;
     } @else if $_direction == 'to-right' {
-      animation: carousel-to-right $_transition linear infinite normal;
+      animation: carousel-to-right $_transition linear infinite normal $_delay;
       position: relative;
       left: 100%;
     } 

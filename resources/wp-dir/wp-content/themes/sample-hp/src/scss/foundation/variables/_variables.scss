@@ -14,17 +14,18 @@
 $font-s-base: 16px;
 
 // font() 経由の font-size の下限（リキッド換算の結果がこれ未満にならない）
-$font-size-min: 11px;
+$font-size-min: 11.5px;
+
 // 下限を適用する境界のブレイクポイントキー（$breakpoint-keys のキー名）
 // 大きい画面側に下限を適用し、このキーより小さい画面では下限なし。null で全幅適用
 // pc-first: media(key) 未満で下限なし / sp-first: media(key) 以上で下限あり
-$font-size-min-media: 'sp';
+$font-size-min-media: null;
 
 /* size
 ----------------------------------------------------------------- */
 // デザインサイズ
 //////////////////////////////////////////////
-$design-size-sp: 390;
+$design-size-sp: 412;
 $design-size-pc: 1440;
 
 // デフォルト aspect-ratio（sh() の aspect-ratio 未指定時のフォールバック）
@@ -108,18 +109,18 @@ $breakpoint-keys: (
 //   get-breakpoint-key('pcL'): $min-width-container-pc,
 //   get-breakpoint-key('pcLL'): $design-size-pc,
 // ) !default;
-// pc-first
+// pc-first (未満で切り替え)
 $breakpoints: (
-  // PC小(デザインサイズ)
+  // // PC小(デザインサイズ)
   // get-breakpoint-key('pcS'): $design-size-pc,
-  // pcデザインコンテナ(確保したい幅(コンテナの一番大きい最大幅)) + 確保したい左右余白 * 2 + スクロールバーバッファ)
+  // // pcデザインコンテナ(確保したい幅(コンテナの一番大きい最大幅)) + 確保したい左右余白 * 2 + スクロールバーバッファ)
   // get-breakpoint-key('pcSS'): 1200 + (40 * 2) + scrollbar-config.$width-scrollbar,
-  // TAB 1025-1200程度 (ipad pro(1024) ・ ipad mini(768) 含む。 PCレイアウト基準)
-  get-breakpoint-key('tab'): 1200,
-  // TAB小 SP大(SPレイアウト基準)
-  get-breakpoint-key('sp'): 768,
+  // TAB (ipad pro(1024) ～ ipad mini 8.3(744) 含む。)
+  get-breakpoint-key('tab'): 1024,
+  // TAB小 SP大
+  get-breakpoint-key('sp'): 744,
   // SP
-  get-breakpoint-key('spS'): 570
+  get-breakpoint-key('spS'): 600
 ) !default;
 /* 中
 /*
@@ -157,11 +158,13 @@ $breakpoints: (
 // 'viewport-base': vwの計算基準となる画面幅（リキッドまたはfixedの場合に使用）
 // 'aspect-ratio': sh()の比率基準（幅/高さ）。(幅, 高さ) のリストまたは数値（幅/高さ）。
 //   省略時は $default-aspect-ratio-pc または $default-aspect-ratio-sp を使用
+// 'min-height': sh() の高さ縮小下限（単位なし px 相当）。100lvh がこれ未満でもそれ以上縮めない。
+//   省略（null）ならその区間は下限なし。要素単位は sh(..., $_min-height: 1000)
 // 'fixed-width': 固定化する時点の画面幅（px、fixedの場合のみ使用）
 // 最初のキーは'default'とし、sp-first/pc-firstのどちらでも、メディアクエリを使用しない範囲の指定を行う
 // default以降は、$breakpointsのキー名で各ブレイクポイントでの設定を行う
 //////////////////////////////////////////////
-// sp-first
+// // sp-first
 // $style-settings: (
 //   'default': (
 //     'type': 'liquid',
@@ -205,6 +208,8 @@ $style-settings: (
     'base-size': 1,
     'viewport-base': $design-size-pc,
     'aspect-ratio': $default-aspect-ratio-pc,
+    // sh() の高さ縮小下限（例: デザイン高さ以下では縮めずスクロールに任せる）
+     // 'min-height': 1000,
   ),
   // get-breakpoint-key('pcS'): (
   //   // 最大コンテナが入りきるまでレスポンシブ
@@ -222,24 +227,22 @@ $style-settings: (
   get-breakpoint-key('tab'): (
       // pcリキッド基準で計算し、倍率調整・スタイル・レイアウト調整
       'type': 'liquid',
-      'base-size': 1.5,
+      'base-size': 1.34,
       'viewport-base': $design-size-pc,
       'aspect-ratio': $default-aspect-ratio-pc,
     ),
   get-breakpoint-key('sp'): (
     // spレイアウト変更
-    // spリキッド基準で計算し、倍率調整・スタイル・レイアウト調整(この区間のみに調整適用させる)
+    // spリキッド基準で計算し、倍率調整・スタイル・レイアウト調整(この区間のみに調整適用させる) ※倍率調整無しも許容(およそスマホ代サイズは600px程度。600前後の見た目で判断)
     'type': 'liquid',
-    'base-size': 0.7,
+    'base-size': 1,
+    // 'base-size': 0.75,
     'viewport-base': $design-size-sp,
     'aspect-ratio': $default-aspect-ratio-sp,
   ),
   get-breakpoint-key('spS'): (
     // spデザイン基準リキッド
-    'type': 'liquid',
-    'base-size': 1,
-    'viewport-base': $design-size-sp,
-    'aspect-ratio': $default-aspect-ratio-sp,
+    'type': 'none'
   ),
 );
 
@@ -324,6 +327,13 @@ $content-space: (
 // 各値は (padding: 余白値, max-width: 最大幅) の形式
 // 単位なし => s(数値)　単位あり => 直接指定
 // max-widthはオプション（nullの場合は設定しない）
+//
+// max-width（PC）と padding の関係（box-sizing: border-box）:
+//   Figma / デザイン上のコンテンツ列幅（例: container/*-max-absolute = 1200）を
+//   そのまま max-width に入れない。左右 padding を加算する。
+//   例: 列 1200・padding 40 → max-width 1280（= 1200 + 40 + 40）
+//   正本: project/css/scss.mdc「コンテナの padding-inline と max-width」
+//
 // SPの max-width は全コンテナ種別（s/m/l）共通。Figma の container 値に依存せず、この数値（単位なし）のみを正とする
 //////////////////////////////////////////////
 // sp時のコンテナマックス幅
@@ -334,59 +344,59 @@ $container-sizes: (
     // pcデザインデータサイズ
     'default': (
         'padding': 40,
-        // container/s-max-absolute (PC): 820
+        // コンテンツ列 820 + padding 40*2
         'max-width': 900,
       ),
     get-breakpoint-key('tab'): (
-      'padding': 40,
+      'padding': 80,
       'max-width': null,
     ),
     // sp用を広く調整
     get-breakpoint-key('sp'): (
-        'padding': 40,
+        'padding': 60,
         'max-width': null,
       ),
     // spデザインデータサイズ
     get-breakpoint-key('spS'): (
-        'padding': 24,
+        'padding': 20,
         'max-width': null,
       ),
   ),
   'm': (
     'default': (
       'padding': 40,
-      // container/m-max-absolute (PC): 1080
+      // コンテンツ列 1080 + padding 40*2
       'max-width': 1160,
     ),
     get-breakpoint-key('tab'): (
-      'padding': 40,
+      'padding': 80,
       'max-width': null,
     ),
     get-breakpoint-key('sp'): (
-      'padding': 40,
+      'padding': 60,
       'max-width': null,
     ),
     get-breakpoint-key('spS'): (
-      'padding': 24,
+      'padding': 20,
       'max-width': null,
     ),
   ),
   'l': (
     'default': (
       'padding': 40,
-      // container/l-max-absolute (PC): 1200
+      // コンテンツ列 1200 + padding 40*2
       'max-width': 1280,
     ),
     get-breakpoint-key('tab'): (
-      'padding': 40,
+      'padding': 80,
       'max-width': null,
     ),
     get-breakpoint-key('sp'): (
-      'padding': 40,
+      'padding': 60,
       'max-width': null,
     ),
     get-breakpoint-key('spS'): (
-      'padding': 24,
+      'padding': 20,
       'max-width': null,
     ),
   ),
@@ -492,13 +502,10 @@ $colors: (
     ),
     'ui': (
       'select-text': #ffffff,
-      'select-bg': #000000,
+      'select-bg': #0042bc,
       'scroll-handle': #000000,
       'scroll-track': #dadada,
-      'focus-outline': #ffc400,
-    ),
-    'state': (
-      'error': get-color-palette('state-01'),
+      'focus-outline': #000000,
     ),
   ),
 ) !default;
@@ -526,13 +533,13 @@ $color-base-text: get-color('text', 'default');
 // bodyの色
 $color-body-bg: get-color('background', 'canvas');
 // 選択色
-//$color-select-text: get-color('ui', 'select-text');
-//$color-select-bg: get-color('ui', 'select-bg');
+$color-select-text: get-color('ui', 'select-text');
+$color-select-bg: get-color('ui', 'select-bg');
 // focus
-//$color-focus-outline: get-color('ui', 'focus-outline');
+$color-focus-outline: get-color('ui', 'focus-outline');
 // scrollbar
-//$color-scroll-track: get-color('ui', 'scroll-track');
-//$color-scroll-handle: get-color('ui', 'scroll-handle');
+$color-scroll-track: get-color('ui', 'scroll-track');
+$color-scroll-handle: get-color('ui', 'scroll-handle');
 
 /* font
 ----------------------------------------------------------------- */
@@ -686,14 +693,14 @@ $font-configs: (
   @return $_value;
 }
 
-// ベースフォント
-$base_font_key: 'noto-sans-jp' !default;
-$base_font: get-font-family($base_font_key);
+// ベースフォント（$font-configs 投入後は $base_fontをget-font-family($base_font_key) に差し替え）
+$base_font_key: null !default;
+$base_font: sans-serif;
 // font() の letter-spacing 換算係数（デザインデータの tracking 値 ÷ この値 × 1em）
 // Figma: 100 / Adobe XD: 1000
 $font-letter-spacing-unit: 100;
 // font() の font-weight デフォルト値（$_key 未指定時）
-$font-weight-default: 500;
+$font-weight-default: 400;
 
 // テキストスタイル一覧マップ（一元管理）
 // 構造:
@@ -702,12 +709,12 @@ $font-weight-default: 500;
 //     'weight': $font-weight-keyのキー,
 //     'size': 数値 | ('default': 値, $breakpointsキー: 値),
 //     'line': 数値 | % | ('default': 値, $breakpointsキー: 値)（数値は ÷ font-size、% は ÷ 100）
-//     'space': 数値
+//     'space': 数値 (figmaの場合　"unit": "PERCENT", "value": 3 => 'space': 3)
 //   )
 // )
 //////////////////////////////////////////////
 $text-styles: (
-  'etc/l': (
+  'label/l': (
     'weight': 'medium',
     'size': (
       'default': 18,
@@ -716,7 +723,7 @@ $text-styles: (
     'line': 21.6,
     'space': 0,
   ),
-  'etc/m': (
+  'label/m': (
     'weight': 'medium',
     'size': (
       'default': 16,
@@ -725,7 +732,7 @@ $text-styles: (
     'line': 19.2,
     'space': 0,
   ),
-  'etc/s': (
+  'label/s': (
     'weight': 'medium',
     'size': (
       'default': 14,
@@ -734,13 +741,13 @@ $text-styles: (
     'line': 16.8,
     'space': 0,
   ),
-  'etc/sStrong': (
+  'label/sStrong': (
     'weight': 'strong',
     'size': 14,
     'line': 16.8,
     'space': 0,
   ),
-  'etc/xl': (
+  'label/xl': (
     'weight': 'medium',
     'size': (
       'default': 20,
@@ -752,13 +759,13 @@ $text-styles: (
     ),
     'space': 0,
   ),
-  'etc/xlStrong': (
+  'label/xlStrong': (
     'weight': 'strong',
     'size': 20,
     'line': 24,
     'space': 0,
   ),
-  'etc/xs': (
+  'label/xs': (
     'weight': 'normal',
     'size': (
       'default': 12,
@@ -827,25 +834,25 @@ $text-styles: (
     ),
     'space': 0.7,
   ),
-  'paragraph/l': (
+  'body/l': (
     'weight': 'normal',
     'size': 18,
     'line': 30.6,
     'space': 0.5,
   ),
-  'paragraph/m': (
+  'body/m': (
     'weight': 'medium',
     'size': 15,
     'line': 25.5,
     'space': 0.5,
   ),
-  'paragraph/mStrong': (
+  'body/mStrong': (
     'weight': 'strong',
     'size': 15,
     'line': 15,
     'space': 0.5,
   ),
-  'paragraph/s': (
+  'body/s': (
     'weight': 'normal',
     'size': (
       'default': 12,
@@ -857,13 +864,13 @@ $text-styles: (
     ),
     'space': 0.4,
   ),
-  'paragraph/xl': (
+  'body/xl': (
     'weight': 'normal',
     'size': 20,
     'line': 34,
     'space': 0.6,
   ),
-  'paragraph/xlStrong': (
+  'body/xlStrong': (
     'weight': 'strong',
     'size': 20,
     'line': 20,
@@ -1081,7 +1088,7 @@ $z-indexes: (
   'pagetop': 100,
   'modal': 1000,
   'tooltip': 2000,
-  'loading': 9999
+  'loading': 9000,
 ) !default;
 
 // get-z-index z-indexの値を取得する

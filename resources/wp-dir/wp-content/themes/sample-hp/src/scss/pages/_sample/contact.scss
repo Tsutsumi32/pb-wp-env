@@ -1,0 +1,178 @@
+@use './initpage' as *;
+
+/******************************************************************
+* page - contact
+*******************************************************************/
+.un_contact {
+  &_layout {
+    display: flex;
+    align-items: flex-start;
+    gap: s(168);
+    width: 100%;
+
+    @include media(get-breakpoint-key('tab')) {
+      gap: s(80);
+    }
+
+    @include media(get-breakpoint-key('sp')) {
+      flex-direction: column;
+      gap: s(40);
+    }
+  }
+
+  &_aside {
+    display: flex;
+    flex-direction: column;
+    gap: s(45);
+    width: s(339);
+    flex-shrink: 0;
+
+    @include media(get-breakpoint-key('sp')) {
+      width: 100%;
+    }
+  }
+
+  &_intro {
+    display: flex;
+    flex-direction: column;
+    gap: s(16);
+  }
+
+  &_intro_text {
+    @include font($_key: 'paragraph/m');
+    color: get-color('text', 'default');
+    margin: 0;
+  }
+
+  &_formWrap {
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+  }
+
+  &_notice {
+    @include font($_key: 'paragraph/m');
+    color: get-color('state', 'error');
+    margin: 0;
+  }
+
+  &_progress {
+    display: flex;
+    align-items: center;
+    width: 100%;
+  }
+
+  &_progress_item {
+    display: flex;
+    align-items: center;
+    flex: 1 1 auto;
+    min-width: 0;
+
+    &:first-child {
+      flex: 0 0 s(75);
+    }
+  }
+
+  &_progress_line {
+    flex: 1 1 auto;
+    height: s(1);
+    margin-right: s(-1);
+    background-image: repeating-linear-gradient(
+      to right,
+      get-color('border', 'subtle') 0,
+      get-color('border', 'subtle') s(4),
+      transparent s(4),
+      transparent s(8)
+    );
+  }
+
+  &_progress_item.__active &_progress_line {
+    background-image: none;
+    background-color: get-color('background', 'brand');
+  }
+
+  &_progress_circle {
+    @include font($_key: 'etc/m');
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: s(75);
+    height: s(75);
+    border: s(1) solid get-color('border', 'subtle');
+    border-radius: 100vh;
+    color: get-color('text', 'default');
+    background-color: get-color('background', 'canvas');
+    box-sizing: border-box;
+  }
+
+  &_progress_item.__active &_progress_circle {
+    border-color: get-color('border', 'brand');
+    background-color: get-color('background', 'brand');
+    color: get-color('text', 'inverse');
+  }
+}
+
+.section_contact {
+  padding-bottom: s(24);
+}
+
+.el_button {
+  &.__outline {
+    background-color: get-color('background', 'contents2');
+    border: s(1) solid get-color('border', 'default');
+
+    .el_button_text {
+      color: get-color('text', 'default');
+    }
+
+    @include hover-only {
+      opacity: 0.85;
+    }
+  }
+}
+
+/* 完了画面
+----------------------------------------------------------------- */
+.un_thanks {
+  &_img {
+    width: s(129);
+    margin-inline: auto;
+  }
+
+  &_head {
+    margin-top: s(64);
+  }
+
+  &_text {
+    margin-top: s(40);
+  }
+
+  &_tel {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: s(40);
+    width: s(494);
+    margin-inline: auto;
+    padding-block: s(16);
+    border-radius: get-border-radius('xs');
+    background-color: get-color('background', 'contents2');
+    gap: s(8);
+    max-width: 100%;
+
+    img {
+      width: s(30);
+    }
+  }
+
+  &_telNumber {
+    @include font($_key: 'etc/xlStrong');
+  }
+
+  &_btn {
+    margin-top: s(64);
+    width: fit-content;
+    margin-inline: auto;
+  }
+}

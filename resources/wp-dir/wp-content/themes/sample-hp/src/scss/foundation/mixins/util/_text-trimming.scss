@@ -1,0 +1,9 @@
+@use '../../variables/variables' as *;
+/******************************************************************
+* text-trimming 
+* figmaのテキスト上下トリミングを実現する
+*******************************************************************/
+@mixin text-trimming {
+  text-box-trim: trim-both;
+  text-box-edge: cap alphabetic;
+}
