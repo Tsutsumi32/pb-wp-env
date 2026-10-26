@@ -1,0 +1,23 @@
+---
+description: project/javascript入口。画面JS・DOM参照（class禁止・data-*必須）・命名・Swiper。編集時は同配下を参照
+globs: "**/src/js/**/*.js"
+alwaysApply: false
+---
+
+# JavaScript Rules
+
+`project/javascript` 配下にあるJavaScript関連ルールのエントリーファイルです。JavaScriptを編集する際は、同ディレクトリ内の必要なルールを参照してください。
+
+画面の JS 実装を依頼されたときは、先に `coading.mdc`「画面JS実装時の手順」と「DOM参照」、`naming.mdc` の `data-*` を確認してください。
+
+## 参照ルール
+
+- `coading.mdc`: JavaScript実装時のコーディングルールです。**画面JS実装時の手順**（HTMLへ `data-*` 追記→定数化→取得）、`pages/*.js` の構成、`createPage`、デバッグ用console、module / feature 設計、配置判断（**全画面共通の初期化は `initProject.js`**・`initCommon` は横断の大元）、**既存流用（案件内 → 無ければ `@js-catalog-adopt`）**、data 属性の定数化、**DOM参照（class / id 禁止・data-* のみ）**、**必須要素の存在チェック**（全画面走査の 0 件は警告しない。画面必須の欠落は `develop` のみ warn して return）、イベント委譲を確認してください。コメント階層・機能内の記述順、**動きの配慮（`prefers-reduced-motion`）** は `frontend-base/javascript.mdc` を参照してください。
+- `naming.mdc`: JavaScriptの識別子命名と、HTML/PHPテンプレートにも関係する JS 用 `data-*` 属性（`data-css-*` を除く）の命名ルールを確認してください。
+- `swiper.mdc`: Swiper 実装ルールです。`slidesPerView` の数値指定、fluid `spaceBetween`、`cloneSlidesForLoop`、**有効時の `overflow` 上書き禁止**、Figma MCP からの算出方法を確認してください。
+- JS カタログ採用: `@js-catalog-adopt`（正本 `catalog/js/`）
+- GSAP / ScrollSmoother（Safari 橋渡し含む）: `@gsap`（`.claude/skills/gsap/SKILL.md`）。プラグイン非依存の Safari CSS は `frontend-base/safari-webkit.mdc`
+
+## 適用対象
+
+JavaScriptファイル、JavaScriptが参照するHTML/PHPテンプレートの `data-*` 属性（`data-css-*` を除く）、JS連携を前提にしたDOM設計を対象とします。CSS 用 `data-css-*` は `frontend-base/html.mdc`「data属性」を参照してください。

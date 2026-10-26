@@ -1,0 +1,660 @@
+---
+description: SCSS実装。ページ/コンポーネント、ネスト、section_、data-css、カラー、余白、aspect-ratio、部品の位置制御
+globs: "**/*.scss"
+alwaysApply: false
+---
+
+# SCSS記述ルール
+
+SCSSを実装する際は、ページ固有スタイル、コンポーネントスタイル、エントリーファイル、ネスト、mixin / function の使い方を以下のルールに従って整理してください。
+
+### Read map（必要 § のみ・全文強制しない）
+
+| 状況 | 読む箇所 |
+|------|----------|
+| ページ／modules 配置 | 「ファイル配置」・「ページ SCSS と `section_`」 |
+| 部品の absolute 等 | 「部品の位置制御」 |
+| 比率固定・画像 | 「aspect-ratio」 |
+| data-css | 「data-css 属性」 |
+| エントリ・ネスト | 「エントリーファイル」・「ネスト」 |
+| 余白・margin | 「コンテナ・セクション余白」（用途含む）・「margin」 |
+| テキスト折り返し | 「テキストの折り返し」（`flex-shrink` / `nowrap`） |
+| s() / mixin / `font()` | 「値とmixin / function」（直指定は完結・`$_line` / `$_space` の渡し方） |
+| hover | 「hover と transition」 |
+| カラー get-color | 「カラー」 |
+
+コンテキスト方針: 巨大ルールは本ファイル冒頭の **Read map**（必要 § のみ）。
+
+## ファイル配置
+
+ページ固有のSCSSは `pages/` ディレクトリ内に記載してください。ページSCSSでは、先頭で `initpage` を `@use` します。
+
+```scss
+@use './initpage' as *;
+
+/******************************************************************
+* page - sample-about
+*******************************************************************/
+/* mv
+----------------------------------------------------------------- */
+.un-mv {
+}
+```
+
+## ページ SCSS と `section_`
+
+`section_{セクション名}` は HTML の `ly_section` に付与するセクション識別 class（`project/template/naming.mdc`「`section_`（セクション識別）」）。ページ SCSS（`pages/`）では次の構造に従う。
+
+- **`.section_xxxx` のブロック内に `.un_*` やその他のセレクタをネストしない**
+- `.section_xxxx {}` には **セクション根（`ly_section.section_xxxx`）に直接当てるスタイルのみ** 書く（背景・セクション単位の negative margin 等）
+- セクション内の要素スタイルは、**同じファイル内で `.un_{セクション名} {}` を兄弟ブロックとして並べる**
+- セクション単位のコメント見出し（`/* message */` 等）の下に、`.section_*` → `.un_*` の順で記述する
+
+```scss
+/* NG: section_ 内に un_ をネスト */
+.section_message {
+  .un_message {
+    &_row {
+    }
+  }
+}
+
+/* OK: section_ と un_ はフラットに並べる */
+.section_message {
+}
+
+.un_message {
+  &_row {
+  }
+}
+```
+
+`.un_*` 内での `el_*` / `bl_*` ネストは可。`un_*` 自身の `&_` 連結ルールは「ネスト」節のとおり（単語区切りでの `&` 重ねネスト禁止）。本節は **`section_` を親にした入れ子だけ** を禁止する。
+
+コンポーネントのSCSSは `modules/` ディレクトリ内に、分類ごとに分けてファイルを作成してください。コンポーネントSCSSでは、先頭で `foundation` を `@use` します。
+
+### モジュール用ファイル名（`modules/`）
+
+`blocks/` / `elements/` 等の部品パーシャルは、**ルート class 名に合わせる**（先頭 `_` + 拡張子 `.scss`）。
+
+- **接頭辞**（`bl_` / `el_` 等）は **ファイル名に含めない**
+- **接頭辞を除いた残りは class と同じ camelCase**（ケバブケース禁止）
+- 例: `.bl_flexContents` → `_flexContents.scss`、`.el_imgPortraitH` → `_imgPortraitH.scss`
+- NG: `_flex-contents.scss` / `_img-portrait-h.scss` / `_bl_flexContents.scss`
+
+```scss
+@use '../../foundation/' as *;
+
+/******************************************************************
+* block - card
+*******************************************************************/
+.bl_card {
+}
+```
+
+## 部品の位置制御
+
+`modules/` 配下の共通部品（`el_*` / `bl_*`）では、**画面上の配置のため** `position: absolute` / `fixed` / `sticky` および `top` / `right` / `bottom` / `left` / `inset` / 配置用途の `z-index` を **部品ルート（および見た目本体）に書かない**。使用画面・セクションごとに座標が変わるため、部品 SCSS に固定しない。
+
+配置・重なり順は **使用箇所側**（`pages/` の `un_*`、ブロック内の配置用ラッパー、HTML の `un_*` ラッパー要素）で制御する。
+
+| 書く場所 | 役割 |
+|----------|------|
+| `pages/` の `un_*` | ページ・セクション固有の配置 |
+| `bl_*` 内の配置用ラッパー（例: `&_textSliderOuter`） | ブロック内での `el_*` の配置 |
+| HTML の `un_*` ラッパー | 部品と画面固有 class の分離（`project/template/naming.mdc`） |
+
+```scss
+// NG: 部品（modules/elements）に画面座標を書く
+.el_textSlider {
+  position: absolute;
+  top: s(380);
+  left: s(-96);
+}
+
+// OK: 使用箇所（pages/）で配置
+.un_about {
+  position: relative;
+
+  .el_textSlider {
+    position: absolute;
+    top: s(380);
+    left: s(-96);
+  }
+}
+
+// OK: ブロック内ラッパーで配置（recruit 内の例）
+.bl_recruit_textSliderOuter {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+}
+```
+
+**例外**（部品内に閉じた用途に限る）:
+
+- 装飾用の `::before` / `::after`（部品枠内の overlay・罫線など）
+- 部品の見た目・動作に本質的に含まれ、**画面座標に依存しない** 内部レイアウト。迷ったら使用箇所側へ逃がす
+
+## aspect-ratio
+
+装飾・図形など、中身が画像ファイルでない要素で比率がデザイン上固定されているときは、**`width` と `height` の両方を指定しない**。一方の寸法と **`aspect-ratio`** で比率を保持する。画像は本節「画像」に従う。
+
+### 装飾・図形など（画像以外）
+
+正方形の装飾、固定比率のフレーム、装飾用の擬似要素など。
+
+```scss
+// NG: 両方指定
+width: s(918);
+height: s(953);
+
+// OK: 一方 + 比率
+width: s(918);
+aspect-ratio: 918 / 953;
+
+// 正方形
+width: s(80);
+aspect-ratio: 1;
+```
+
+- 基準軸はレイアウトに合わせる（幅追従なら `width`、高さ固定なら `height`）
+- `width` + `aspect-ratio` のとき `height: auto` は書かない
+- 例外: 中身の量で高さが決まる箱、比率を固定しない伸び縮み
+
+### 画像
+
+`aspect-ratio` を付けるのは、**枠の形を先に固定し、中の画像が変わってもその枠でトリミングする**ときだけ。書き出し済みの静的画像へ常時付けない。フレーム寸法と画像寸法の端数差に `object-fit: cover` が乗ると、端が切れたり高さがずれたりする。
+
+**付ける**
+
+- 一覧のサムネイル・カード画像
+- CMS・ACF など、投入画像の比率が不定で、同じ枠に収める箇所
+- 複数枚を同じ枠で揃えるグリッド
+
+比率はデザイン上の表示枠（Figma のクリップ親フレーム等）の width / height から `aspect-ratio: {width} / {height}`。あわせて内側 `img` は `object-fit: cover`、はみ出しは親の `overflow: hidden`。
+
+**付けない**
+
+- MV、本文中の図、書き出し済みの装飾写真など、そのファイル自体が最終比率のもの
+- 詳細本文のインライン画像、フルサイズ表示が意図されるメイン画像
+- 依頼で比率固定なしと指示された箇所
+
+これらは幅または高さの一方だけを指定し、もう一方は画像の内在比率に任せる。`object-fit: cover` と `height: 100%` は付けない。幅いっぱいにするなら内側 `img` は `width: 100%` のみ。
+
+迷ったら、書き出し画像をそのまま見せる静的箇所は **付けない**。枠で切って揃える意図があるときだけ付ける。
+
+**レイアウト用ラッパーと画像制御用 `el_*`**
+
+枠固定するときの **`aspect-ratio` の正本は、画像制御用 `el_*`（`el_imgPortraitH` 等）または `el_*` が無い場合のレイアウト用ラッパー** とする。詳細な DOM 構成・判定は `project/template/image.mdc`「レイアウト用ラッパーと画像制御用 element 部品」を正とする。
+
+- **画像制御用 `el_*`**（`modules/elements/`）: 枠固定するとき `aspect-ratio` / `border-radius` / `overflow` / 内側 `img` の `object-fit: cover`。**`width` 固定値・`flex-shrink`・`order` 等のレイアウト指定は禁止**。内在比率の静的画像には `aspect-ratio` と `object-fit: cover` を付けない
+- **レイアウト用ラッパー**（親 `bl_*` の `&_imgWrap`、`un_*_imgWrap` 等）: `width` / flex 配置 / SP の `order` 等。**`el_*` があるときは `aspect-ratio` をラッパーに重ねない**
+- **`el_*` 内の `width: 100%`** は、親ラッパー幅への追従のみ可（固定 `s()` 値は不可）
+
+```scss
+// 枠固定（カードサムネ等）
+.bl_card {
+  &_thumb {
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+}
+
+// 静的（書き出し画像をそのまま）
+.un_about {
+  &_photo {
+    width: s(480);
+
+    img {
+      width: 100%;
+    }
+  }
+}
+```
+
+## data-css 属性
+
+CSS/SCSS から参照する `data-css-*` 属性の使い方です。命名・HTML への付与ルールは `frontend-base/html.mdc`「data属性」を参照してください。
+
+- セレクタは `[data-css-xxxx]` または `&[data-css-xxxx]` を使う
+- JavaScript から `data-css-*` を読み書きしない（状態変更は class または JS 用 `data-*`）
+- class 名（`el_*` / `bl_*` / `un_*`）を起点にネストし、その中で `data-css-*` を分岐条件にする
+
+```scss
+.un_card {
+  &[data-css-variant='featured'] {
+    ...
+  }
+
+  &[data-css-layout='horizontal'] {
+    ...
+  }
+}
+```
+
+## エントリーファイル
+
+`common.scss` や `foundation/index.scss` などのエントリーファイルは、npm の `scss-index`（`watch:scss-index`）で **自動生成** される前提です。対象ディレクトリは `build-config.js` の `SCSS_INDEX` → `TARGET_DIRS` を参照してください（例: `modules/elements` / `modules/blocks` / `modules/header` / `modules/footer` / `modules/layouts` ほか）。
+
+### `common.scss` への `@use` は手動追記しない
+
+- 上記 `TARGET_DIRS` 配下に `_*.scss` パーシャルを **新規作成・削除** したとき、`common.scss` への `@use` 追記・削除は **行わない**（自動生成に任せる）
+- 開発モード（`npm run watch` 等）が動いていれば、パーシャル変更後に `common.scss` は自動で再生成される
+- エージェントは `scss-index` を実行しない（正本: `.cursor/rules/cursour-allways-rules.mdc`「ビルド・コンパイル」）。未起動でも代行しない
+
+### 部品 SCSS を新規作成するとき
+
+1. `modules/elements/_<name>.scss` 等のパーシャルファイルを作成する（先頭は `@use '../../foundation/' as *;`）
+2. **`common.scss` は編集しない**
+
+## ネスト
+
+ブロック根（`.un_*` / `.bl_*` / `.el_*` 等）の直下では、**class 名の `_` 以降をそのまま1つの `&_` セレクタにまとめる**。単語区切りごとに `&` を重ねてネストしない。
+
+- 例: `un_ojt_stepBulletIcon` → `.un_ojt { &_stepBulletIcon {} }`（**1段**）
+- **禁止**: `.un_ojt { &_stepBullet { &Icon {} } }` のように、`_` 区切りの各語を `&` 連結で入れ子にする書き方
+
+HTML 側の親子関係は `project/template/naming.mdc`「class名の親子関係」。`_` はルートの次に1段までなので、子の役割は `un_ojt_stepBulletIcon` のように camelCase で1段に収める（`un_ojt_stepBullet_icon` は禁止）。SCSS の `&_` のネスト深さとは別物。
+
+疑似要素・modifier（`&::before` / `&.__modifier` / `&:hover` 等）は、**対象セレクタのブロック内**にネストしてよい。自身の class を参照する場合は `$_this: &;` を使う。
+
+```scss
+// NG: 単語区切りでの & つなぎネスト
+.un_ojt {
+  &_stepBullet {
+    &Icon {
+    }
+  }
+}
+
+// OK: 接尾辞を1つの &_ にまとめる
+.un_ojt {
+  &_stepBulletIcon {
+  }
+}
+
+.el_btn {
+  $_this: &;
+
+  &.__light {
+    #{$_this}_text {
+      @include font(22, 22, 22, 700);
+    }
+  }
+
+  &_icon {
+    &::before {
+      content: '';
+    }
+  }
+}
+```
+
+## コンテナ・セクション余白
+
+ページ全体の幅・セクション上下余白は、**`_variables.scss` の `$container-sizes` / `$section-sizes`** と **`ly_container` / `ly_section` のモディファイア**（`__s` / `__m` / `__l` / `__page` 等）で調整する。ページ SCSS にコンテナの `max-width` やセクション余白の `padding-block` を直書きしない。
+
+### 用途（何に使うか／使わないか）
+
+`$section-sizes` / `$content-space` は **階層の余白専用**。近い値だからとリスト間や padding に流用しない。
+
+| トークン | 使う | 使わない |
+|----------|------|----------|
+| `$section-sizes` / `ly_section` | **第一階層のセクション間**の上下余白（`main` 直下の `<section>` など） | セクション内の細かい間隔 |
+| `$content-space` / `ut_space` | **第二階層のセクション間**・コンテンツグループ間の余白 | リスト項目間、コンテンツの padding、最小要素間 |
+| 上記以外 | `s()` でページ／部品 SCSS に書く（「margin」） | `$section-sizes` / `$content-space` への寄せ |
+
+Figma で該当 Variables が **適用されている**とき、または **非整備で算出・variables 追記した**ときは `ly_section` / `ut_space`（`figma/figma-rule.mdc`「セクション・コンテナ余白」）。情報起点（`@subpage-design-implement`）では **用途に合うときだけ**使う。
+
+### コンテナの `padding-inline` と `max-width`（Figma 実装時）
+
+PC デザインのフレームは **コンテナが上限に達した状態** を表す。フレーム内の左右余白は `ly_container` の `padding-inline` ではなく、ワイドビューポート時の外側余白に相当する。`ly_container` は `box-sizing: border-box` のため、**`max-width` は左右 `padding` を含む箱の幅**になる。
+
+- **Figma の左右余白（フレーム外側）をそのまま `padding-inline` に設定しない**
+- **Variables がある場合（正）**: `Device.json` の `container/{size}-space` / `container/{size}-max` を **そのまま** `$container-sizes` の `'padding'` / `'max-width'` に入れる（**加減算・丸め禁止**）
+  - `*-space` → `'padding'`（PC/SP はモード値をそのまま）
+  - `*-max` → `'max-width'`。上限なし相当（例: `99999`）は `null`
+  - キー名は末尾（`s` / `m` / `l` 等）。一括同期手順は `@figma-tokens-setup` reference-json「Device（コンテナ）」
+- **Variables が無い・未適用のフォールバックのみ**:
+  - **`padding-inline`**: PC **`40`**、SP 原則 **`24`**（デザイン実測が全画面で一貫している場合は実測値可）
+  - **コンテンツ列幅**（PC）: Figma 上の主要コンテンツ列・`container/*-max-absolute` 等の **内側の幅**を取る。フレーム外側余白を引いて無理に算出しない
+  - **`max-width`**: **コンテンツ列幅 ＋ 左右 `padding` の合計**（`border-box`。例: 列 `1200`・padding `40` → `max-width` `1280`）。デザイン上の列幅だけを `max-width` に入れると、padding 分コンテンツが狭くなる
+  - **Variables の `*-max` があるのに「列＋padding」を加算しない**（二重加算になる）
+
+### セクション余白・キー統合
+
+- **`ly_section` / `ly_container`**: 整備時は Variables → 任意の `SECTION(...)` / `CONTAINER(...)`。非整備（役割不明）は画面全体から算出 → `$section-sizes` / `$container-sizes` 最小追記 → `ly_*` 付与（正本: `figma/figma-rule.mdc`「セクション・コンテナ余白」）。余白不要ブロックには付けない
+- **既存キーの値は画面実装で変更しない**（他画面波及防止）。差分の吸収・追記可否は工程別（正本: `figma/style.mdc` §1／下層は `project/design-subpage.mdc`「variables（実装時）」）。値変更は `@figma-tokens-setup` / `@figma-tokens-sync`
+- **ブレイクポイント間は同一キー**（例: PC/SP で `__l` → `__m` に差し替えない）。差はキー内の BP 値で吸収（同 §1）
+- **通常の Figma 実装**: `$section-sizes` / `$container-sizes` も **デザイン通り・Variables 突合**。近い既存キーへの丸めはしない（正本: `figma/style.mdc` §1）
+- **近い既存キーへの丸め（片側・依頼明示の非整備）**: **`$section-sizes` / `ly_section` のみ**。誤差程度（目安 **50px 未満**）は既存キーへ丸めてよい。大きく異なる場合（目安 **50px 以上**）は別キー追加（`__{キー名}`）。非整備の判定は依頼明示のみ（`figma/style.mdc` §1）
+- **`$container-sizes` / `$content-space`・その他余白**は、片側・非整備でも **丸めない**（Figma 値のまま・同一なら既存キー、無ければデザイン値で追記または個別実装）
+- 画面固有の細かい間隔のみ `un_` 配下の SCSS に記述する
+
+### セクション余白の上下片方のみ（`__top` / `__bottom`）
+
+`ly_section` はデフォルトで `$section-sizes` の値を **上下対称** の `padding-block` として適用する。Figma で片方だけ余白がある場合は、サイズモディファイアに加え **`__top` または `__bottom`** を付与する（`modules/layouts/_section.scss`）。
+
+| Figma の余白 | class 例 |
+|---|---|
+| 上下同値 | `ly_section __m` |
+| 上のみ（下 0） | `ly_section __m __top` |
+| 下のみ（上 0） | `ly_section __m __bottom` |
+
+- Figma 実装時は、セクションフレームの **padding-top / padding-bottom**（または `space/section-space/*` が片側のみの指定）を確認してから class を決める
+- **`__mg`**（`margin-block`）を使う場合も同様に `__top` / `__bottom` を併用可（例: `ly_section __m __mg __top`）
+- **上下で余白量が異なる**場合は `__top` / `__bottom` だけでは再現できない。通常はデザイン通りの個別調整または別キー追加。片側・依頼明示の非整備時のみ、**`$section-sizes` の既存キーへの丸め**も可（`figma/style.mdc` §1。セクション以外の余白には使わない）
+
+```html
+<!-- Figma: section-space/m = 144px、padding-top のみ -->
+<section class="ly_section __m __top">
+  <div class="ly_container __m">...</div>
+</section>
+```
+
+### コンテンツ余白（`$content-space`）
+
+**第二階層のセクション間・コンテンツグループ間**の余白（上記「用途」）。**`_variables.scss` の `$content-space`** で管理し、**`ut_space __{size}`** で適用する。このトークンを使う箇所では同じ余白をページ SCSS に直書きしない。リスト項目間・コンテンツの padding・最小要素間は対象外（`s()`）。
+
+- Figma 変数: `space/content-space/*`（`Device.json`）→ キー名 `xs` / `s` / `m` / `l` / `xl`
+- Figma 実装時: `content-space` が設定されている要素に **`ut_space __{size}`** を付与（`__top` / `__bottom` / `__mg` は `_utils.scss` の `ut_space` に従う）
+- 値は `$media-query-strategy` に従い `'default'`（PC）と `get-breakpoint-key('sp')`（SP）で定義
+- **キー統合**: 通常どおりデザイン通り・Variables 突合。**片側・非整備でも丸めない**（セクション余白の 50px 丸めは `$section-sizes` 専用。正本: `figma/style.mdc` §1）
+- 一括同期手順: `@figma-tokens-setup` の [reference.md](../../../skills/figma-tokens-setup/reference-json.md)「Device（余白）」
+
+```html
+<section class="ly_section __m section_about">
+  <div class="ly_container __m">
+    <div class="un_about_head">...</div>
+    <div class="un_about_body ut_space __m">...</div>
+  </div>
+</section>
+```
+
+```html
+<section class="ly_section __page section_privacy">
+  <div class="ly_container __l">
+    <div class="un_privacy">...</div>
+  </div>
+</section>
+```
+
+## margin
+
+要素間の余白は **`margin-top` または `margin-block` を優先** する。前の兄弟・親の流れから下方向に間隔を積み上げる。
+
+- 単方向の余白は `margin-top: s(…)` を使う
+- 上下をまとめて指定する場合は `margin-block: s(…) 0` など、**上側（または block-start）に値を置く** 書き方を優先する
+- 兄弟要素の繰り返し間隔は `& + & { margin-top: s(…); }` を検討する
+- **`margin-bottom` のみ** で間隔を取らない（`margin-bottom` 単独指定は禁止）
+
+```scss
+// OK
+&_title {
+  margin-top: s(28);
+}
+
+&_item + &_item {
+  margin-top: s(16);
+}
+
+&_head {
+  margin-block: s(28) 0;
+}
+
+// NG: bottom だけで間隔を作る
+&_text {
+  margin-bottom: s(28);
+}
+```
+
+`margin: 0` などのリセット、または `margin-block` / `margin-top` と併用する明示的な下余白調整は対象外とする。
+
+## テキストの折り返し
+
+見出し・本文・ラベルなど **テキスト要素** には、折り返しを阻害する指定を付けない。Figma MCP / Dev Mode の出力に含まれていても転記しない。
+
+- **`flex-shrink: 0` をテキスト要素に付けない**。flex 子になると縮まなくなり、改行されずレイアウトが崩れる。固定幅が必要なのは画像・アイコン・レイアウト用ラッパー側（「aspect-ratio」）
+- **`white-space: nowrap` は原則使わない**。単行 hug や MCP 出力に合わせて付けない。依頼で明示されたときのみ
+
+```scss
+// NG: テキストに shrink 固定・nowrap
+&_title {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+// OK: テキストは折り返しに任せる
+&_title {
+  @include font($_key: 'head/m');
+}
+```
+
+## 値とmixin / function
+
+- 固定値を記載する箇所には、原則として `s()` を使用してください。
+- `sh()` は画面高さ（lvh）を考慮したスケール関数です。**特に指示がない限り使用しない**でください。通常の寸法・余白・フォントサイズ等は `s()` を使います。
+- `sh()` の高さ縮小下限は次のいずれかで設定します。未指定（`null`）なら下限なし。詳細は `_style-settings.scss` / `_style-settings-vars.scss` を参照してください。
+  - ブレイクポイント単位: `$style-settings` の `'min-height'`
+  - 要素ごと: `sh(600, $_min-height: 1000)`（`$_min`＝算出値の下限とは別。呼び出し単位指定時は全体の `--lvh-vw-ratio` を使わない）
+- 背景画像の設定には、必ず `background-image` のmixinを使用してください。
+- テキストのスタイルはmixinを使用してください。汎用的に使用できる `font()` を優先し、デザインデータに依存する命名・形式化されたmixinがある場合は、Figma用のルールや参照データを確認してください。
+- **`font()` は必須。`$_key` か値直指定かは実装箇所で判断**する（すべてのテキストに `$text-styles` キーを付けない）。判断の正本: Figma は `figma/style.mdc` §4、情報起点は `project/design-subpage.mdc`「variables（実装時）」
+- **`font()` で `$_key` を指定する場合**、`size` / `line` / `space` / `weight` は `$text-styles` から取得されるため、**先頭の `$_size` / `$_line` / `$_space` 引数は不要**（`0, 0, 0` 等のダミー値を渡さない）。`font-family` は **`$base_font`**。別ファミリーは `$_family` と `$_font-key` で上書き（`figma/style.mdc` §4）。**`$base_font` はトークン投入時に本文ファミリーで一度決める**（画面ごとに再判定しない）
+- **`font()` で値直指定する場合**、`$_size` / `$_line` / `$_space` / `$_weight` は **すべて必須**（weight のデフォルト変数は無い）。`$_family` は本文（`$base_font`）と同じなら省略可。**サイズ・行間・文字間・太さは `font()` 引数だけで完結**させる（下記「直指定の完結」）
+- **`font()` の `$_min-size` / `$_max-size` / `$_use-sh` 等は原則指定しない**（依頼や既存方針で明示されたときのみ。Figma 実装も同様）
+- **ブレイクポイント間は同一キー**（`figma/style.mdc` §1）: PC で `paragraph/l` なら SP も `paragraph/l`。メディアクエリで別キーへ差し替えない（例外は手動微調整のみ）
+
+### `font()` 直指定の完結（必須）
+
+値直指定・`$_key` 指定のいずれでも、`font()` が出力するタイポ（`font-size` / `line-height` / `letter-spacing` / `font-weight` / `font-family`）は **同一セレクタで重ね書きしない**。
+
+- **原則**: `@include font(...)` の直後に `letter-spacing` / `line-height` / `font-size` / `font-weight` を別指定しない（例: `font()` の `$_space` を `0` にしてから `letter-spacing: …` を足すのは NG）
+- **例外**: 依頼・状態・既存方針で **特別な上書きが必要なときのみ**（hover / modifier / メディアクエリでの差分など）。その場合も可能な限り `font()` 引数側で完結させ、プロパティ直書きは最小にする
+- `text-align` / `white-space` / `text-decoration` など `font()` 対象外は従来どおり別指定可（`frontend-base/css.mdc`「プロパティ順」）
+
+### `font()` 直指定の引数（デザイン値の渡し方）
+
+mixin（`<theme-root>/src/scss/foundation/mixins/base/_font.scss`）が換算する。**CSS 最終値や Dev Mode の `em` / 倍率をそのまま渡さない**。Figma の単位に合わせた生値を渡す。
+
+| 引数 | 渡す値（デザイン通り） | mixin の処理 |
+|------|------------------------|--------------|
+| `$_size` | フォントサイズ（px 相当・単位なし） | `s()` |
+| `$_line` | **PIXELS** → 行の高さ px 相当（単位なし）。**PERCENT** → `150%` のように `%` 付き。`AUTO` → `normal` | 単位なしは `÷ $_size`、`%` は `÷ 100` → CSS の unitless / `normal` |
+| `$_space` | **PERCENT** → Figma の `value`（単位なし。例: `3`）。**PIXELS** → `1.8px` のように `px` 付き | 単位なし/% は `÷ $font-letter-spacing-unit`（既定 100）× `1em`。`px` は `s()` |
+| `$_weight` | CSS 数値（またはキー経路の weight） | 直書き |
+
+- **`$_line`**: CSS の `line-height: 1.5` や「倍率」を単位なしで渡さない（再度 `÷ size` される）。行間の小数は第3位四捨五入で第2位まで（トークンと同じ。正本: `@figma-tokens-setup` reference-json「テキストスタイル」）
+- **`$_space`（単位の正）**: **Figma の `letterSpacing.unit`（`PERCENT` / `PIXELS`）を正**とする。数値の見た目で PIXELS と推測しない（`PERCENT` の `1.8` は px っぽく見えても単位なし `1.8` → `0.018em`）。Dev Mode / MCP が示す CSS 換算（`0.03em` / `1.8px` 等）は渡さず、**生の `unit` + `value` に合わせる**。PERCENT → 単位なしの `value`、PIXELS → `px` 付き
+- 値はデザイン通り（近い数への丸め禁止は `figma/style.mdc` §1。行間の桁揃えのみ上記例外）
+
+```scss
+// OK: テキストスタイルキーのみ（$base_font）
+@include font($_key: 'body/m');
+
+// OK: テキストスタイル + ファミリー上書き
+@include font(
+  $_key: 'label/l',
+  $_family: get-font-family('roboto'),
+  $_font-key: 'roboto',
+);
+
+// NG: $_key 指定時にダミー引数を渡す
+@include font(0, 0, 0, $_key: 'body/m');
+
+// NG: 原則不要なオプションを付ける
+@include font($_key: 'body/m', $_min-size: 12);
+
+// NG: PC/SP でキーを切り替える
+@include font($_key: 'body/l');
+@include media('sp') {
+  @include font($_key: 'body/m');
+}
+
+// OK: $_key なし（size / line / space / weight 必須。本文なら family 省略可）
+// Figma: size 16 / lineHeight PIXELS 24 / letterSpacing PERCENT 0 / weight 700
+@include font(16, 24, 0, 700);
+
+// OK: letterSpacing PERCENT 3 → $_space: 3（別途 letter-spacing は書かない）
+@include font(16, 24, 3, 700);
+
+// OK: letterSpacing PERCENT 1.8（見た目は px っぽいが unit が PERCENT）→ 単位なし 1.8
+@include font(16, 24, 1.8, 700);
+
+// OK: letterSpacing PIXELS 1.8 → $_space: 1.8px
+@include font(16, 24, 1.8px, 700);
+
+// OK: lineHeight PERCENT 150 → $_line: 150%
+@include font(16, 150%, 0, 700);
+
+// NG: 直指定で weight を省略
+@include font(16, 24, 0);
+
+// NG: font() のあと letter-spacing などを重ね書き
+@include font(16, 24, 0, 700);
+letter-spacing: 0.03em;
+
+// NG: CSS 倍率や em を単位なしで渡す（換算が二重・誤る）
+@include font(16, 1.5, 0.03, 700);
+
+// NG: PERCENT なのに見た目で PIXELS 扱い（1.8px）にする
+@include font(16, 24, 1.8px, 700); // unit が PERCENT のとき
+```
+- hoverの処理を書くときは、mixinの `hover()` を使用してください。
+- **hover で見た目が変わるプロパティ（opacity / color / transform 等）には、必ず `transition` を併記してください。** `@include hover` の **前** に、変化するプロパティに対応する `transition` を書きます。値は `get-transition()` を使用してください。
+- 色・エフェクト・フォント・transition など、variables に該当値があるプロパティは mixin / function 経由で参照する（`get-color()` / `set-effect()` / `font()` / `get-transition()` 等）。エフェクトの詳細は `figma/style.mdc` §5。
+
+## hover と transition
+
+hover 時にアニメーション（状態変化）を付ける場合、**transition の設定は必須**です。`@include hover` だけでは transition は付きません。
+
+### 基本
+
+- 変化させるプロパティごとに `transition` に列挙する
+- 時間・イージングは `get-transition('normal')` 等を使用する（直書き禁止）
+- opacity のみ変える場合は `@include hover-opacity` も可（内部で transition 付き）
+
+```scss
+.el_link {
+  transition: opacity get-transition('normal');
+
+  @include hover {
+    opacity: 0.75;
+  }
+}
+
+.el_btn {
+  transition:
+    color get-transition('normal'),
+    background-color get-transition('normal');
+
+  @include hover {
+    color: get-color('text', 'inverse');
+    background-color: get-color('background', 'canvas');
+  }
+}
+```
+
+### 禁止
+
+- `@include hover` 内でプロパティを変えているのに、親セレクタに `transition` がない
+- hover 用の transition 時間を hex や秒数直書きで固定（`get-transition()` 未使用）
+
+## カラー
+
+色は **必ず** `src/scss/foundation/variables/_variables.scss` に定義し、実装 SCSS から参照する。  
+定義場所以外（`pages/` / `modules/` 等）への hex / rgba 直書きは禁止。
+
+**基本方針**: パレット（`$color-palette`）→ セマンティック（`$colors`）→ 実装は **`get-color()`**。  
+実装 SCSS から **`get-color-palette()` を直接使わない**（`$colors` 定義内の Alias のみ可）。Figma 実装時の突合・一括同期は `figma/style.mdc` §6。
+
+| 層 | 定義場所 | 用途 |
+|----|----------|------|
+| `$color-palette` | `_variables.scss` | 役割を持たないプリミティブ色（hex / rgba）。`sample*` 等の仮名は使わない |
+| `$colors` | `_variables.scss` | モード別の役割色（`group` / `name`）。値は `get-color-palette()` でパレットから抽出 |
+| `get-color()` | 実装 SCSS | `get-color('text', 'body')` のように役割色を参照 |
+
+### `$colors` のグループ（Semantic）
+
+| group | 用途 |
+|-------|------|
+| `text` | テキスト色 |
+| `background` | 背景色 |
+| `border` | 線・枠線色 |
+| `icon-decoration` | アイコン・装飾系の色 |
+| `ui` | 選択背景・選択テキスト、スクロールバー、フォーカス色など。**画面実装では原則触らない**（基盤・JSON 同期側。詳細は下記「UI フラット変数」） |
+
+- Figma に Semantic バリアブルがある場合は、その `group` / `name` に合わせて `$colors` へ載せる（一括は `@figma-tokens-setup`）。
+- **Semantic が無い・薄い場合**は、デザイン上の要素（文字 / 背景 / 線 / アイコン・装飾）を見て上表の group に当てはめ、汎用 `name` で `$colors` に定義してから使う。
+- **実装時の group 選択（CSS の役割一致）**: `color` → `text`、`background-color` / 面の塗り → `background`、`border-color` / stroke / 区切り線 → `border`、アイコン・装飾の塗り／線 → `icon-decoration`。**同色でも別 group を流用しない**（例: 線に `get-color('text', 'body')` は NG）。不足なら **同じ `$color-palette` への Alias で該当 group に最小追記**する（`text/body` と同色の線 → `border` に既存キーが無ければ `border/*` を追加）。**例外**: 当該プロパティに Figma Semantic 変数が **明示適用**されているときは、その `group` / `name` をキー突合で使う（クロス group 可）
+- **名称はセマンティックに、画面・セクション・要素固有にしすぎない。** `jobs-title` / `top-kv-pink` / `footer` 等の画面名・ブロック名をキーにしない。`body` / `subtle` / `brand` / `inverse` / `accent` など役割が伝わる汎用名を優先する。
+- **実装時の手動追記**（JSON 同期以外）: 各 group 内の `name` と、参照する `$color-palette` キーは **できるだけ揃える**。名前が指す色と Alias 先が食い違わないようにする（例: `text/brand` → `brand`、`background/brand` → `brand`。`background/brand` → `canvas` は NG）。`body` / `subtle` / `inverse` / `canvas` など用途名がニュートラル等へ Alias するのは従来どおり可。JSON からの同期結果はそのまま用いる。
+- **同一グループ内で同じ色を二重定義しない。** 既存キーが同じ `$color-palette` 値を指していれば再利用する。**別 group への同色 Alias は可**（役割一致のため）
+- 追記前に `$color-palette` と `$colors` を確認し、実測値が既存と一致する場合は追加を避ける。
+
+```scss
+// OK: 既存の text.body を再利用
+color: get-color('text', 'body');
+
+// OK: 線は border group（同色でも text を流用しない）
+border-color: get-color('border', 'default');
+
+// OK: 手動追記で name とパレットキーが揃う（別 group 同色 Alias 可）
+'text': (
+  'brand': get-color-palette('brand'),
+),
+'background': (
+  'brand': get-color-palette('brand'),
+),
+'border': (
+  'default': get-color-palette('neutral-02'), // text/body と同パレットでも可
+)
+
+// NG: 同じ #191919 を text グループに重複定義
+'text': (
+  'body': get-color-palette('neutral-02'),
+  'jobs-title': get-color-palette('neutral-02'), // 重複
+)
+
+// NG: background/brand なのに palette が canvas
+'background': (
+  'brand': get-color-palette('canvas'),
+)
+
+// NG: 線なのに text group を流用（Figma で text/* が stroke に明示適用されていない）
+border-color: get-color('text', 'body');
+
+// NG: 実装 SCSS からパレット直参照
+color: get-color-palette('accent-01');
+```
+
+### 追記手順（Figma 実装時）
+
+画面単位の `@figma-style-coding` / `@figma-coding` で都度追記するときの手順。一括は `@figma-tokens-setup`（reference-json「SemanticColor」）。
+
+1. Figma 実測値が **既存 `$color-palette` に無い色だけ**、意味のあるキー名で `$color-palette` に追加する（同色のキー重複は作らない）
+2. **`$colors` の `default` 内**に、上記グループへマッピングする（既存キーで足りれば増やさない。Semantic 無し時は要素から group を判断）。**`name` とパレットキーは揃える**（上記「実装時の手動追記」）
+3. 実装 SCSS は **`get-color()` のみ**で参照する
+
+自社デザインで Semantic が整備済み・JSON 同期可能なのに `$colors` が空の場合は、画面実装のついでに palette 直参照へ逃げず、先に `@figma-tokens-setup` / `@figma-tokens-sync` を案内する（`figma/style.mdc` §8）。
+
+### UI フラット変数（`ui/*`）
+
+`$color-select-text` 等は `_variables.scss` で初期コメントアウト。Figma `SemanticColor` に `ui/*` が定義されているキーのみコメントを外す。手順は `@figma-tokens-setup` reference-json「SemanticColor」。画面の見た目実装では原則触らない。
+
+### 禁止
+
+- 実装 SCSS から `get-color-palette()` を直接使うこと（`$colors` 定義内の Alias 以外）
+- `$color-palette` への `sample1` / `sample2` 等の仮名
+- 実装 SCSS への hex / rgba 直書き（未定義色は `$color-palette` → `$colors` を経て `get-color()`）
+- `$colors` への画面・セクション固有キーの乱立
+- 同一セマンティックグループ内での同色キーの重複定義
+- 実装時の手動追記で Semantic の `name` と Alias 先パレットキーを食い違わせること（例: `*/brand` → `canvas`）
+- CSS の役割と異なる group の流用（線に `text/*`、文字に `border/*` 等。Figma Semantic の明示適用がある場合を除く）

@@ -1,0 +1,606 @@
+---
+description: PHP記述。末尾カンマ禁止（PHP7互換）、固定テキスト直書き、会社情報はconsts.php、URL/アセットパスはタグ直書き、format_template_html、改行はbr、属性値は="直後改行禁止、エスケープ、インデント
+globs: "**/*.php"
+alwaysApply: false
+---
+
+# PHP記述ルール
+
+HTMLと混在する `.php` テンプレート、テンプレートから読み込む PHP 部品、およびテンプレート出力に関わる PHP ロジック（`inc/utils` 等）を対象とします。**「末尾カンマ（PHP 7 互換）」はテーマ・静的 PHP を含むすべての `.php` に適用**します。HTML マークアップのコメント（閉じタグコメントのみ。開始タグコメント禁止）は `frontend-base/html.mdc`「コメント」を参照してください。
+
+### Read map（必要 § のみ・全文強制しない）
+
+| 状況 | 読む箇所 |
+|------|----------|
+| 関数・呼び出しの末尾カンマ | 「末尾カンマ（PHP 7 互換）」 |
+| 部品切り出し・配置 | 「コンポーネント化」 |
+| 固定テキスト・会社情報（consts.php）・URL/アセットパス・foreach・br・エスケープ | 「テンプレート実装」以降 |
+| 動的一覧・CPT 等の 0 件時 | 「動的コンテンツ（0件時）」 |
+| PHP ロジックコメント | 「コメント」 |
+| `<?php` タグ | 「`<?php` タグ」 |
+| HTML/PHP 混在のインデント | 「インデント」 |
+
+コンテキスト方針: 巨大ルールは本ファイル冒頭の **Read map**（必要 § のみ）。
+
+## 末尾カンマ（PHP 7 互換）
+
+PHP 7 系で構文エラーになる末尾カンマは付けない。エディタや整形ツールが PHP 8 向けに付けても、コミット・実装時は除去する。
+
+| 対象 | 末尾カンマ |
+|---|---|
+| 関数・メソッドの**仮引数**リスト | **禁止**（PHP 8.0+） |
+| 関数・メソッド**呼び出し**の実引数リスト | **禁止**（PHP 8.0+） |
+| クロージャの `use (...)` | **禁止**（PHP 8.0+） |
+| 配列リテラル `[]` / `array()` | **可**（PHP 7 でも可） |
+
+```php
+// NG
+foo(
+    $a,
+    $b,
+);
+function bar(
+    string $a,
+): void {}
+
+// OK
+foo(
+    $a,
+    $b
+);
+function bar(
+    string $a
+): void {}
+
+// OK（配列）
+$items = [
+    'a',
+    'b',
+];
+```
+
+## コンポーネント化
+
+UI の見た目共通化は **SCSS（`src/scss/modules/`）** と、必要に応じた **PHP 部品の切り出し** の両方で行います。class 命名は `project/template/naming.mdc` に従います。
+
+### 配置
+
+| 種別 | 配置先 | 対象 |
+|---|---|---|
+| block（`bl_*`） | `<docroot>/modules/blocks/` | **基本すべて**別 PHP ファイルにする |
+| element（`el_*`） | `<docroot>/modules/elements/` | 複数ページで使う・複雑なもの（原則は直書き可） |
+| 機能・ロジック部品 | `<docroot>/modules/`（直下） | パンくず・確認画面・ポリシー等 |
+| ページ固有（`un_*` 等） | ページテンプレート直書き（複雑時のみ `includes/pages/<page-slug>/`） | 当該ページ専用 |
+
+- WordPress テーマでは `<docroot>` をテーマルートに読み替える（例: `modules/blocks/recruit.php`）。既存が `inc/modules/` ならそれに合わせる
+- ファイル名は接頭辞を除いた class 名の camelCase に対応（例: `bl_recruit` → `recruit.php`）。SCSS は `src/scss/modules/blocks/_recruit.scss` 等（`project/css/scss.mdc`「モジュール用ファイル名」）
+- スタイルは `src/scss/modules/` に共通化する。PHP の `blocks/` / `elements/` と SCSS の分類を対応させる
+- `modules/` に切り出したら `.cursor/design/components.md` の PHP 欄を更新する（`design-subpage.mdc`「components カタログ」）
+
+### 切り出しの判断
+
+**block（`bl_*`）— 基本は別ファイル**
+
+- `bl_*` のマークアップは **ページへの直書きを避け**、実装時点で `modules/blocks/` に PHP ファイルとして置く
+- 1ページだけで使う場合も同様（「共通だから切る」ではなく **block だから切る**）
+- データ（配列・文言・URL 等）は呼び出し側のページテンプレートに置き、部品へ `$args` で渡す
+
+**element（`el_*`）**
+
+- 原則はページ／親 block 内に直書きしてよい
+- 複数ページで使い回す、または単体で複雑なら `modules/elements/` に切り出す
+
+**ページ固有要素（`un_*` 等）**
+
+- **原則**: ページテンプレート内に直接記述する
+- 規模・複雑さによりページコンポーネント化する場合のみ `includes/pages/<page-slug>/` に置く
+
+**繰り返し要素の扱い（同一ページ内）**
+
+1. まず配列 + `foreach` で表現する（「リスト的な繰り返しコンテンツ」）
+2. 対象が `bl_*` なら、繰り返しは部品内（または呼び出し側の foreach + 部品）とし、**block 本体は `modules/blocks/` に置く**
+3. `un_*` 等のページ固有リストは、複雑になるまでファイル分割しない
+
+### 呼び出しとデータ渡し（WordPress）
+
+- 読み込みは `get_template_part()`。第3引数で連想配列を渡し、部品側は `$args` で受け取る
+- 呼び出し側: 表示用配列は `// ===== 表示用データ =====`、モジュールへ渡す組み立ては `// ===== モジュール渡し用データ =====` に分ける（下記「コメント」）
+- 部品側: ファイル先頭で `$args` から取り出し、必須欠落時は早期 `return`
+
+```php
+// 呼び出し側（ページテンプレート）
+// ===== モジュール渡し用データ =====
+$recruit = [
+    'groups' => $positionsGroups,
+];
+
+get_template_part('modules/blocks/recruit', null, $recruit);
+```
+
+```php
+// 部品側（modules/blocks/recruit.php）
+$groups = $args['groups'] ?? [];
+if (!is_array($groups) || $groups === []) {
+    return;
+}
+```
+## テンプレート実装（PHP/HTML混在）
+
+PHP と HTML が混在するテンプレートでは、マークアップ側をできるだけ静的な HTML に近づけてください。
+
+- ループ・条件分岐の **直前またはブロック先頭** で、表示用の変数（クラス名・出力用 HTML 等）を定義する
+- **固定の URL・アセットパスはタグ／呼び出し箇所に直書き**する（ファイル上部への `$xxxUrl` 切り出し禁止。下記「URL・アセットパスの記述」）
+- HTML 属性やタグ本文に、三項演算子・複数行 `echo`・長い関数呼び出しを直接書かない（短い `page_url()` / `esc_url()` 等の固定パス直書きは可）
+- `format_template_html()` などループ用の出力処理は、手前の PHP ブロックで済ませ、HTML 側は単一の `echo` に留める。エスケープの使い分けは「エスケープと HTML マークアップ」を参照
+- ロジックが複雑な場合は、**使用ブロック直前**の PHP または `inc/utils` に寄せる（ファイル上部への URL／パス一括定義はしない）
+
+### 固定テキストの記述
+
+**1回だけ出る静的テキスト**（見出し・本文・キャッチコピー等）は、**HTML 内に `<br>` 付きで直接記述**する。`ob_start()` より前に `$xxx` / `$xxxHtml` 等の表示用変数を定義したり、`format_template_html()` で包んだり **しない**。
+
+| パターン | 記述方法 |
+|---|---|
+| セクション固有の固定テキスト（**1箇所のみ**） | HTML 内に直接記述（改行は `<br>`、段落区切りは `<br>` または `<br><br>`）。**変数化しない** |
+| **会社情報など横断で使う固定値**（会社名・電話・FAX・住所・メール等） | **`consts.php` の定数**を参照（下記「会社情報・共通定数」）。テンプレートへの直書き禁止 |
+| 同一構造が2件以上のリスト | 配列 + `foreach`（下記「リスト的な繰り返しコンテンツ」）。各アイテムの `text` / `title` 等は **配列要素内に直接記載** |
+| `modules/` へ渡すデータ | `$subMv` 等のモジュール渡し用変数 |
+| ループ内で条件分岐する値 | クラス名・URL・エスケープ済み文字列など、ロジック上必要なもののみ |
+
+```php
+<!-- Good: 固定テキストは HTML に直接（<br> 直後にソース改行しない） -->
+<h2 class="un_intro_catchHead">
+    100年変わらぬ誠実さで、<br>次の100年を拓きます。
+</h2>
+
+<!-- NG: 固定テキストを変数化 -->
+<?php
+$introCatchHtml = format_template_html('100年変わらぬ誠実さで、<br>次の100年を拓きます。');
+?>
+<h2 class="un_intro_catchHead">
+    <?php echo $introCatchHtml; ?>
+</h2>
+```
+
+### 会社情報・共通定数（`consts.php`）
+
+ヘッダー・フッター・お問い合わせ・会社概要など **複数箇所で使い回す会社情報**は、テンプレートに直書きせず **`consts.php` で定数定義**し、テンプレートから参照する。
+
+| 環境 | パス |
+|---|---|
+| WordPress | `<theme-root>/inc/config/consts.php` |
+| 静的 PHP | `<docroot>/includes/config/consts.php` |
+
+**対象の目安**（例）: 会社名、電話番号、FAX、住所、メールアドレス、その他クライアント固有で画面横断の連絡先・表記
+
+**`config.php` の `SITE_NAME` との分担**
+
+- **サイトタイトル／meta／OGP** → `config.php` の `SITE_NAME`（`@project-env-setup` A-1）
+- **画面に出す会社名・連絡先** → `consts.php`
+- 表示会社名が `SITE_NAME` と同値なら **`SITE_NAME` を使い、同内容を `consts.php` に二重定義しない**
+
+**実装時**
+
+1. 未定義なら `consts.php` に `const` を追加してから使う（仮値でよい。確定値は案件投入時）
+2. テンプレートでは定数を `echo`（テキストは `esc_html()` / 属性は `esc_attr()`。住所に `<br>` を含むなら `format_template_html()`）
+3. セクション固有のキャッチコピー等は対象外（上記「固定テキストの記述」どおり HTML 直書き）
+
+```php
+// consts.php
+const COMPANY_NAME = '株式会社サンプル';
+const COMPANY_TEL = '03-0000-0000';
+const COMPANY_FAX = '03-0000-0001';
+const COMPANY_ADDRESS = '東京都〇〇区〇〇 1-2-3';
+const COMPANY_EMAIL = 'info@example.com';
+```
+
+```php
+<!-- OK: 定数参照 -->
+<p class="footer_company">
+    <?php echo esc_html(COMPANY_NAME); ?>
+</p>
+<a href="tel:<?php echo esc_attr(COMPANY_TEL); ?>">
+    <?php echo esc_html(COMPANY_TEL); ?>
+</a>
+
+<!-- NG: 会社情報をテンプレートに直書き -->
+<a href="tel:03-0000-0000">03-0000-0000</a>
+```
+
+### URL・アセットパスの記述
+
+固定のリンク先（`href`）や画像・アセットのソース（`src`、`render_img()` の名前／パス引数など）は、**使うタグ／呼び出し箇所に直接書く**。該当箇所が分かりにくくなるため、**ファイル上部で `$xxxUrl` / `$xxxPath` 等に切り出さない**。
+
+| パターン | 記述方法 |
+|---|---|
+| 固定のページ URL・外部 URL・アセットパス（1箇所） | 属性や呼び出し引数に直書き（必要なら短い `esc_url(page_url(...))` 等） |
+| ループ配列の項目・`modules/` 渡し（`$args`） | 配列／渡し用データ内に記載（ファイル上部の単独変数化はしない） |
+| 条件分岐で組み立てが必要な値 | **使用ブロック直前**のみ。ファイル先頭への一括定義はしない |
+
+```php
+<!-- OK: タグ側に直接 -->
+<a href="<?php echo esc_url(page_url('about')); ?>" class="el_btn">詳しく見る</a>
+<?php echo render_img('common_logo', ['alt' => 'ロゴ']); ?>
+
+<!-- NG: ファイル上部で変数化してから参照 -->
+<?php
+$aboutUrl = page_url('about');
+$logoName = 'common_logo';
+?>
+<!-- …中略… -->
+<a href="<?php echo esc_url($aboutUrl); ?>">...</a>
+```
+
+### テキスト出力のマークアップ
+
+**固定テキスト**（上記「固定テキストの記述」）は HTML 内に `<br>` 付きで直接書く。
+
+`foreach` 等で **配列から出力するテキスト**では、開始タグと本文を別行に分ける。出力方法は下記「エスケープと HTML マークアップ」（開発者管理の表示テキストは **`format_template_html()` をデフォルト**）。
+
+- **1行にまとめない** — `<p class="..."><?php echo $text; ?></p>` は避ける
+- **対象** — ループ内のラベル・見出し・本文など、PHP 変数から出力する要素
+- **例外** — エラー文言など属性付きの短い1行出力、フォームバリデーション用の `role="alert"` 付き `p` など、既存パターンで1行が明確な箇所はそのままでよい
+
+### 改行の表現（`<br>` / `\n` / 行配列）
+
+**リストの配列項目**や `foreach` から出力する文字列を変数化する場合、意図した改行は **`<br>`** で表現する。**1箇所だけの固定テキスト**は上記「固定テキストの記述」どおり HTML に直接書く（変数化しない）。
+
+| 方法 | 可否 | 理由 |
+|------|------|------|
+| 文字列内の `<br>` + `format_template_html()` | **OK** | 行単位の class・スタイルを `<span>` 等で付与できる |
+| 文字列内の `\n`（`white-space: pre-line` 等で表示） | **NG** | 改行位置に class を当てられず、Figma 再現・装飾が困難 |
+| 行配列 `string[]` + `foreach` で複数 `<p>` | **NG** | Figma 上の **1 テキスト要素** を複数段落に分割することになる（下記「Figma テキスト要素」参照） |
+
+- Figma 実装時の **1 テキストレイヤー → 1 テキスト要素** は `figma/figma-rule.mdc`「テキスト要素」を正とする。
+
+#### `<br>` 直後のソース改行禁止
+
+`<br>`（`class` 付き含む）の **直後にソース上の改行や空白を入れない**。続きの文言は同一行に続ける。
+
+レスポンシブで `hp_hidden_*` 等により `<br>` を非表示にしたとき、ソース上の改行・空白がそのままスペースとして残るため。
+
+```html
+<!-- NG: <br> 直後のソース改行（非表示時にスペースが残る） -->
+<p>ここで働く、<br>
+人を知る。</p>
+<p>PC のみ改行<br class="hp_hidden_sp_">
+続きの文言</p>
+
+<!-- OK: <br> と続きを同一行に -->
+<p>ここで働く、<br>人を知る。</p>
+<p>PC のみ改行<br class="hp_hidden_sp_">続きの文言</p>
+```
+
+```php
+<!-- NG: 配列文字列内でも <br> 直後に改行を入れない -->
+'text' => '1行目<br class="hp_hidden_sp_">
+2行目',
+
+<!-- OK -->
+'text' => '1行目<br class="hp_hidden_sp_">2行目',
+```
+
+### エスケープと HTML マークアップ
+
+テンプレート内の静的配列（開発者管理）や、意図的にマークアップを含むデータの出力ルール。
+
+| データの内容 | 出力方法 |
+|---|---|
+| **開発者がテンプレート内の配列等で定義した表示用テキスト**（`title` / `text` / `desc` / `num` / `catch` / `label` 等。**Figma に `<br>` がなくても同様**） | **`format_template_html()`** で出力（**デフォルト**）。レスポンシブ用 `<br>` や `<span class="hp_hidden_*">` 等を後から差し込みやすくするため |
+| ユーザー入力・CMS / ACF 由来の値 | WordPress の `esc_html()` / `esc_attr()` 等。**`format_template_html()` は使わない** |
+| HTML 属性値（`class` / `style` 等）・コード内で組み立てた固定 URL 等 | `htmlspecialchars()` または `esc_attr()` / `esc_url()` 等、用途に応じたエスケープ |
+
+- **配列の表示テキストは `<br>` の有無にかかわらず `format_template_html()`** — ユーザー入力ではないためエスケープ優先度は低く、デザイン上改行がなくても実装後に `<br>` を足すケースが多い
+- **`<br>` を含む文字列に `htmlspecialchars()` をかけない** — `<br>` が `&lt;br&gt;` になり表示が崩れる
+- **ユーザー入力・CMS 由来の値**に `format_template_html()` は使わない（XSS 対策のため）
+- ループ内では、表示用テキストは手前の PHP ブロックで `format_template_html()` 済み変数（例: `$titleHtml`）に整形してから `echo` する（「リスト的な繰り返しコンテンツ」参照）
+
+```php
+<!-- NG: 行配列 + 複数 p（Figma 1テキスト要素の誤分割） -->
+'lines' => ['1行目', '2行目', '3行目'],
+<?php foreach ($item['lines'] as $line) : ?>
+<p><?php echo htmlspecialchars($line, ENT_QUOTES, 'UTF-8'); ?></p>
+<?php endforeach; ?>
+
+<!-- OK: 1文字列 + <br> + format_template_html（1 p） -->
+'text' => '1行目<br>2行目<br>3行目',
+$textHtml = format_template_html($item['text']);
+<p>
+    <?php echo $textHtml; ?>
+</p>
+```
+
+```php
+<!-- NG: 表示テキストに htmlspecialchars（<br> 追加時に崩れる） -->
+$title = htmlspecialchars((string) ($item['title'] ?? ''), ENT_QUOTES, 'UTF-8');
+$num   = esc_html($item['num']);
+
+<!-- OK: 配列の表示テキストは format_template_html（<br> なしでもデフォルト） -->
+$titleHtml = format_template_html($item['title']);
+$numHtml   = format_template_html($item['num']);
+```
+
+```php
+<!-- NG: コード内で組み立てた class に不要な htmlspecialchars -->
+$class = htmlspecialchars($blockClass, ENT_QUOTES, 'UTF-8');
+
+<!-- OK -->
+$class = 'un_service_block' . ($reverse ? ' __reverse' : '');
+```
+
+```php
+<!-- Bad: テキスト出力を1行にまとめる -->
+<p class="un_item_label"><?php echo $label; ?></p>
+<h2 class="un_item_catch"><?php echo $catchHtml; ?></h2>
+
+<!-- Good: 開始タグと本文を改行して分ける -->
+<p class="un_item_label">
+    <?php echo $label; ?>
+</p>
+<h2 class="un_item_catch">
+    <?php echo $catchHtml; ?>
+</h2>
+```
+
+php-cs-fixer（`repinspl/php-cs-fixer-html-indent` 含む）は PHP ブロックのインデント補正向けです。HTML 属性内に PHP を埋め込むと自動整形が効きにくくなるため、上記の書き方を優先してください。
+
+```php
+<!-- Bad: 属性内で条件分岐 -->
+<li class="bl_item<?php echo $i === $page
+    ? ' __active'
+    : ''; ?>">
+
+<!-- Good: 手前で定義してから出力 -->
+<?php
+$isActive = $i === $page;
+$itemClass = 'bl_item' . ($isActive ? ' __active' : '');
+?>
+<li class="<?php echo htmlspecialchars($itemClass, ENT_QUOTES, 'UTF-8'); ?>">
+```
+
+```php
+<!-- Bad: ループ内で毎回長い echo -->
+<p><?php echo htmlspecialchars(
+    (string) ($item['title'] ?? ''),
+    ENT_QUOTES,
+    'UTF-8',
+); ?></p>
+
+<!-- Good: ループ先頭で整形済み変数を用意 -->
+<?php foreach ($items as $item): ?>
+<?php
+    $titleHtml = format_template_html((string) ($item['title'] ?? ''));
+?>
+<p>
+    <?php echo $titleHtml; ?>
+</p>
+<?php endforeach; ?>
+```
+
+### リスト的な繰り返しコンテンツ
+
+同一構造の markup が **2件以上** 続く場合（カード一覧・Q&A・アコーディオン項目・目次リンク等）、HTML を件数分 **コピペしない**。表示用データを **配列で定義**し、`foreach` で出力する。
+
+- 配列は **`ob_start()` より前**（HTML 出力より前）に定義する。区切りは「コメント」→「ロジックのまとまり」の形式で明示する
+- **リストアイテムの表示文言**（`title` / `text` / `catch` 等）は **各配列要素に直接記載**する。複数アイテムで共通の `$jobsItemText` 等に切り出して参照しない（ダミーで同一文言でも要素ごとに書く）
+- **仮テキスト TODO**（`title` / `text` 等がダミーと判断できる場合）は **`foreach` 内ではなく配列定義側**に記載する（`figma/figma-rule.mdc`「仮テキスト」「記載位置」）
+- **差し替え画像 TODO**（配列要素の画像パスが sample／WM 等）も同様に **配列定義側**（`figma/assets.mdc`「差し替えが必要な画像」「記載位置」）。`foreach` 内の `render_img()` 直上に繰り返さない
+- ネストするリスト（親項目内の Q&A 等）は **配列の入れ子 + ネストした `foreach`**
+- 同じ内容を複数箇所から参照する場合（目次リンクと本文一覧など）は **1つの配列を共通利用**する
+- 表示用テキスト（`title` / `text` / `desc` / `num` / `catch` 等）は、**`<br>` の有無にかかわらず** `format_template_html()` で出力する（静的データ・開発者管理の前提）。**`\n` 改行は使わない**（行単位の class が効かないため）。**行配列 `string[]` で複数 `<p>` に分割しない**（`['1行目', '2行目']` ではなく `'1行目<br>2行目'` を **1 つのテキスト要素** に出力）。**`<br>` 直後のソース改行は入れない**（「改行の表現」）。**`htmlspecialchars()` は使わない**（詳細: 上記「エスケープと HTML マークアップ」）
+- **ユーザー入力・CMS 由来の値に `format_template_html()` は使わない**
+- CMS / API 連携前の静的ページでは、テンプレート内の配列リテラルでよい。取得・整形が複雑になったら `inc/utils` 等へ寄せる
+- **リスト出力のためだけに PHP 部品化しない** — まず配列 + `foreach`。複雑なら関数または専用部品（「コンポーネント化」参照）
+
+```php
+<!-- NG: 複数アイテム共通の文言変数に切り出し -->
+$jobsItemText = '1行目<br>2行目';
+$jobsItems = [
+    ['text' => $jobsItemText],
+    ['text' => $jobsItemText],
+];
+
+<!-- OK: 各要素に直接記載 -->
+$jobsItems = [
+    ['text' => '1行目<br>2行目'],
+    ['text' => '別の本文<br>2行目'],
+];
+```
+
+```php
+// ===== 表示用データ =====
+$interviews = [
+    [
+        'id'   => '01',
+        'dept' => 'クレーンオペレーター',
+        'catch'    => '大きな現場が、<br>もっと大きな自信を育ててくれる。',
+        'qa'       => [
+            [
+                'question' => '実際に働いてみて、<br>どのようなことを感じましたか。',
+                'answer'   => '...',
+            ],
+        ],
+    ],
+];
+
+ob_start();
+?>
+<ul>
+    <?php foreach ($interviews as $interview): ?>
+        <?php
+        $anchorId  = 'interview-' . $interview['id'];
+        $deptHtml  = format_template_html($interview['dept']);
+        $catchHtml = format_template_html($interview['catch']);
+        ?>
+        <li><a href="#<?php echo $anchorId; ?>"><?php echo $deptHtml; ?></a></li>
+        <h2>
+            <?php echo $catchHtml; ?>
+        </h2>
+    <?php endforeach; ?>
+</ul>
+```
+
+### 動的コンテンツ（0件時）
+
+WordPress のカスタム投稿一覧・詳細周辺・関連投稿、PHP の動的ループ、API／クエリ結果の一覧など、**データ件数に依存する表示**を実装するときは、**1件も無い場合の表示も必ず実装する**。
+
+- **デザイン未提供でも実装する**（空メッセージ・空カード枠など、既存トーンに合わせた最小 UI でよい）
+- 0件時のマークアップは **コメントアウトしてよい**（`have_posts()` / 件数分岐の `else` 側を HTML コメントまたは PHP ブロックコメントで残す）。有効化は運用・確認時で可
+- 0件時を省略したまま「データがある前提」だけで完了にしない
+- 画像が無い投稿のフォールバックは `project/template/image.mdc`「動的コンテンツの画像フォールバック」
+
+```php
+<?php if (have_posts()) : ?>
+    <?php while (have_posts()) : the_post(); ?>
+        ...
+    <?php endwhile; ?>
+<?php else : ?>
+    <?php /*
+    <p class="un_news_empty">現在お知らせはありません。</p>
+    */ ?>
+<?php endif; ?>
+```
+
+## コメント
+
+PHP のロジック部分（データ取得・整形、分岐、ループ、関数定義など）では、意図が伝わりにくい箇所に **適宜** 説明コメントを記載してください。
+
+### ファイル・関数の説明
+
+テンプレート部品（`includes/head/` 等）やユーティリティ PHP では、ファイル上部に PHPDoc 形式で役割・前提・注意点を記載します。再利用関数には `@param` / `@return` 等の PHPDoc を付けます。
+
+```php
+/**
+ * ファビコン出力
+ *
+ * SVG / PNG は OS の prefers-color-scheme に応じて出し分けます。
+ */
+```
+
+### 処理内コメント
+
+条件分岐の理由、CMS/API から取得した値の使い方、優先順位や例外処理など、コードだけでは意図が分かりにくい箇所に簡潔なコメントを付けます。見れば分かる処理の逐語的な説明や、1行ごとの過剰なコメントは避けてください。
+
+```php
+// ユーザー手動設定がある場合のみ localStorage を優先
+if ($storageEnabled && $storedTheme !== null) {
+    $theme = $storedTheme;
+}
+```
+
+### ロジックのまとまり
+
+テンプレート上部の PHP ブロックでは、**役割ごとに区切りコメント**でブロックを分け、データ定義と HTML 出力の境界が一目で分かるようにします。
+
+**形式**
+
+```php
+// ===== {ブロックの役割} =====
+```
+
+- `=` は前後にスペースを入れ、ブロック名は日本語で簡潔に書く
+- `ob_start()` より前の処理は、原則この区切りでまとめる
+- 見れば分かる処理の逐語的な区切りは不要。ブロック単位の区切りに留める
+
+**よく使うブロック名（例）**
+
+| 区切りコメント | 用途 |
+|---|---|
+| `// ===== 表示用データ =====` | ページ固有の配列・静的データ定義 |
+| `// ===== モジュール渡し用データ =====` | `modules/` へ渡す変数の組み立て（`$subMv` 等） |
+| `// ===== 表示用データの整形 =====` | 取得済みデータのエスケープ・派生値の生成 |
+
+モジュールへ渡すデータは、元データ（表示用データ）とは **別ブロック** に分ける。同一ブロックに混在させない。
+
+```php
+// ===== 表示用データ =====
+$interviews = [
+    // ...
+];
+
+// ===== モジュール渡し用データ =====
+$subMv = [
+    'label' => 'PEOPLE',
+    'head'  => '人を知る',
+    // ...
+];
+
+ob_start();
+?>
+```
+
+## `<?php` タグ
+
+要素の中身や制御構文では、`<?php` を HTML と同一行に書かず、改行して独立した行から開始する。
+
+```php
+<!-- Good -->
+<div class="example">
+    <?php render_img([...]); ?>
+</div>
+
+<!-- Bad -->
+<div class="example"><?php render_img([...]); ?></div>
+```
+
+制御構文（`if` / `foreach` 等）も同様です。
+
+```php
+<!-- Good -->
+<ul>
+    <?php foreach ($items as $item): ?>
+        <li>...</li>
+    <?php endforeach; ?>
+</ul>
+
+<!-- Bad -->
+<ul><?php foreach ($items as $item): ?>
+```
+
+**属性値は例外**。`属性名="` の直後に改行を入れない。値が長くても、中に `<?php` があっても、開始引用符から閉じ引用符までを同一行にする。タグを属性ごとに改行するのは可。禁止なのは `="` の直後（および値の途中）の改行。
+
+```php
+<!-- Good -->
+<img
+    src="<?php echo htmlspecialchars(IMAGE_BASE_URI . '/' . IMAGE_DIR_SVG . '/common_icon_arrowUpRight.svg', ENT_QUOTES, 'UTF-8'); ?>"
+    alt=""
+>
+
+<!-- Bad: =" の直後で改行 -->
+<img
+    src="
+<?php echo htmlspecialchars(IMAGE_BASE_URI . '/' . IMAGE_DIR_SVG . '/common_icon_arrowUpRight.svg', ENT_QUOTES, 'UTF-8'); ?>
+"
+    alt=""
+>
+```
+
+式が長く属性値内で折り返したくなるときは、改行せず手前の PHP で変数化する（「テンプレート実装」「インデント」）。
+
+## インデント
+
+HTML と PHP が混在するテンプレートでは、**ネスト階層に合わせてインデント**する（プロジェクト既存に合わせる。通常はスペース 4）。
+
+- `foreach` / `endforeach` / `if` / `endif` / `render_img` / `get_template_part` などの PHP を **列 0 に落とさない**
+- 親 HTML の **子要素と同じ階層**に置き、ループ内の HTML・PHP はさらに 1 段下げる
+- 属性内の複雑な条件・長い式は手前の PHP で変数化する（「テンプレート実装」）。インデント崩れの温床になるため
+
+```php
+<!-- NG: PHP だけ列 0 -->
+            <div class="bl_job_cardGrid">
+<?php foreach ($cards as $card): ?>
+                <div class="bl_job_card">...</div>
+<?php endforeach; ?>
+            </div>
+
+<!-- OK: 親の子として揃える -->
+            <div class="bl_job_cardGrid">
+                <?php foreach ($cards as $card): ?>
+                    <div class="bl_job_card">
+                        ...
+                    </div>
+                    <!-- /.bl_job_card -->
+                <?php endforeach; ?>
+            </div>
+```
+
+**実装直後の確認（必須）**: PHP を新規・追記したファイルは、当該差分のインデントを目視し、ずれがあればその場で直す。Figma 実装スキルからの呼び出しは `@figma-template-coding` / `@figma-page-implement` を参照（本節が正本。手順の長文はスキルへ複写しない）。

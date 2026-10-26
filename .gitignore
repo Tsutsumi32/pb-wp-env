@@ -1,9 +1,9 @@
-.cursor/*
-!.cursor/design/
+#.cursor/*
+#!.cursor/design/
 #!.cursor/tmp/
 #!.cursor/figma-tokens/
-.claude/*
-CLAUDE.md
+#.claude/*
+#CLAUDE.md
 _docs/_bookkmarklet/*
 _docs/_production-docs/*
 _docs/_settings/*

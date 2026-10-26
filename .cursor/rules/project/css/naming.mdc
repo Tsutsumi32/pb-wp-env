@@ -1,0 +1,39 @@
+---
+description: SCSSの変数・function・mixin命名規則
+globs: "**/*.scss"
+alwaysApply: false
+---
+
+# SCSS命名ルール
+
+SCSSで使用する変数、function、mixin は以下のルールに従って命名してください。
+
+## 基本
+
+- 変数: ケバブケースで命名します。例: `$base-color`
+- 引数: ケバブケースで命名し、先頭に `_` を付けます。例: `$_size`
+- セレクタ内で定義するローカル変数: ケバブケースで命名し、先頭に `_` を付けます。例: `$_this`
+- function: ケバブケースで命名します。例: `get-color`
+- mixin: ケバブケースで命名します。例: `background-image`
+
+## ローカル変数
+
+セレクタ内で自身のclassを参照する場合は、親セレクタの先頭で `$_this: &;` を定義し、子要素やmodifier内で `#{$_this}` を使って参照してください。
+
+```scss
+.el_btn {
+  $_this: &;
+
+  &.__light {
+    #{$_this}_text {
+      // style
+    }
+  }
+}
+```
+
+## 命名時の注意
+
+- 値の用途や取得元が分かる名前にしてください。
+- 一時的な値であっても、意味が読み取れない短すぎる名前は避けてください。
+- 既存の変数、function、mixin、get系functionがある場合は、新規定義より既存利用を優先してください。

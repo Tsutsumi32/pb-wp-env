@@ -1,0 +1,35 @@
+---
+description: figmaルール群のエントリ（テンプレ／スタイル／トークン）
+alwaysApply: false
+---
+# figma ルールインデックス
+
+figmaMCP 実装は **テンプレート** と **スタイル** を分けて依頼できる。ルールは共通＋フォールバック（structured／unstructured ラベルなし）。
+
+## ワークフロー
+
+| 作業 | スキル | 主なルール |
+|------|--------|------------|
+| テンプレート（PHP/HTML＋画像＋SCSS 骨組み） | `@figma-template-coding` | `figma-rule` / `assets` / `interpretation` |
+| スタイルのみ | `@figma-style-coding` | `style`（＋構造確認用に `figma-rule`） |
+| 両方 | `@figma-coding` | 上記を順に。直呼びのセルフチェックは `browser-check.md` |
+| ページ全体（解析→セクション連続実装・完了時コンソール＋大差検知・再開可。見た目の自動修正はしない） | `@figma-page-implement` | 上記＋計画ファイル正本（手順はスキル。Cursor は cursor-ide-browser）。コンテキスト防衛は `@figma-coding` / page-implement（同型 MCP）／各ルールの Read map |
+| 実装用画面カタログ | `@figma-batch-catalog` | （索引のみ。探索は figma-discovery 参照） |
+| 複数画面バッチ実装 | `@figma-batch-implement` | カタログ／直 URL → page-implement |
+| 外部チーム・コード規約差分 | `@external-project-rules` | （既存ソース → `.cursor/external/project-rules-*.md`。共有 `project/` は不変。確認は最後） |
+| 外部チーム・Figma 作法メモ | `@external-figma-conventions` | （`.cursor/external/figma-conventions-*.md`。共有 figma/ は不変） |
+| トークン基盤（リセット→JSON 同期 / 何もしない） | `@figma-tokens-setup` | `style.mdc` §2〜6、`reference-json.md` |
+| トークン差分同期（JSON鮮度ゲート→diff→pull/push） | `@figma-tokens-sync` | `style.mdc` §2〜6・§8、同期スキル reference |
+
+## 参照ファイル
+
+- `figma/figma-rule.mdc`: 構造・命名・分類・余白（**Variables 主**・任意レイアウト命名・**非整備は算出→variables→`ly_*`**）・**依頼明示の非整備時は見出し／ボタン／ラベル／カード／下層FV／横断セクション等をコンポーネント化（近似丸め統合禁止・`__*` まで）**・slot / 画像 DOM・**インスタンス／メイン／バリアント（UI・選択中バリアントを画面配置の正・種類分実装・モディファイア／状態セレクタ・`sp` 等は SP 用認識・画面側インスタンス差分・テキストは `characters` を正）**・**アノテーション（UI／UX／機能仕様／原稿／他要件は指示どおり。コンポーネント→ components.md。原稿→ TODO。重い UX／機能は計画で管理）**・**コーディング関連レイヤー名（妥当性判断のうえ `el_`/`bl_`/`ly_`・`::before`/`::after`・`z-index:` 等）**・**`coading:none`（コーディング対象外）**・疑似要素（装飾）・仮テキスト・**`cms` フレーム（更新管理仕様→ project-page-info/cms-frame.md）**
+- `figma/assets.mdc`: 画像/SVG（既存最優先・`@EXP` / `@EXP:PNG` / `@EXP:SVG`・**MCP の役割分担**・SVG は対象 nodeId の SVG export・**TEXT 含む SVG はアウトライン化必須**・**画面 INSTANCE の選択バリアント／差し替えを正・テキストパスは characters 不一致なら既存流用しない**・ネスト時は親優先 1 枚化・矩形写真のみ JPG・使用箇所命名・**複数 IMAGE fill は visible のみ・opacity 必須・枚数一致（§6-1a）**）
+- `figma/interpretation.mdc`: 命名不足時の構造推定フォールバック
+- `figma/style.mdc`: スタイル実装（**通常はデザイン通り**・**キーも数値も丸め禁止**・**非整備の丸めはセクション余白のみ**・Variables/TextStyleは突合・BP間は同一キー・**フォントは `$font-configs` / `$base_font` ゲート**）
+- `figma/responsive.mdc`: PC/SP 判定・両デザイン時は **差分先行（B）**・**SP もデザイン通り**（フレーム再取得＋項目突合・**Figma 同値なら SP も同値／縮小禁止**）・**スタイル時は原則レスポンシブ**・片側のみ時の基本対応（**余白は原則ひと段階・据え置き禁止**・**PC のみ時の SP テキスト寄せ**・既存トークン値は触らない・キー切替しない）
+- `figma/inside-stroke.mdc`: padding + Inside stroke → 原則 `border`（「除外する」=`strokesIncludedInLayout: false` のみ `box-shadow: inset`）
+
+## アーカイブ
+
+旧 structured／unstructured 分割は `_bk/rules/archive/figma-structured/`・`figma-unstructured/`、旧スキルは `_bk/skills/archive/`。

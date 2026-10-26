@@ -1,0 +1,91 @@
+---
+description: WordPress posts.php は設定・初期/サンプルのみ。画面の投稿・ターム表示はWP実データを使う
+globs:
+  - "**/inc/config/posts.php"
+  - "**/archive-*.php"
+  - "**/single-*.php"
+  - "**/taxonomy-*.php"
+  - "**/inc/utils/**/*.php"
+  - "**/inc/modules/**/*.php"
+alwaysApply: false
+---
+
+# WordPress `posts.php` と実データ
+
+`inc/config/posts.php`（`Post` クラス）の役割と、フロント／テンプレートでのデータ取得の境界を定めます。CPT・タクソノミーの**登録値の書き方**は `@project-page-info` / `php-config.md`「posts.php」を参照してください。
+
+## 構成
+
+1. `posts.php` の役割
+2. 画面表示は WordPress 実データ
+3. 設定参照が許容される用途
+4. NG / OK の判断
+
+## `posts.php` の役割
+
+`posts.php` は次のための**設定ファイル**です。管理画面や DB の実データの代替ではありません。
+
+| 用途 | 例 |
+|---|---|
+| CPT / タクソノミーの登録 | `post_type_settings`、`category_settings`（slug・label・default・**`noindex`（ターム一覧は基本 `true`）** 等） |
+| ページメタ・読込設定 | `title`、`description`、`noindex`（CPT／固定ページの画面キー）、`assets_name`、`breadcrumbs` |
+| 一覧クエリ条件 | `archive_query`（`posts_per_page` 等） |
+| 初期ターム投入 | `term_settings`（`make wp-create-posts` 等） |
+| 開発用サンプル投稿 | `data/{post_type}/posts.dev.json`（`make wp-create-posts` が対話または非対話でインポート） |
+| コード上の識別子 | `Post::NEWS`、`Post::NEWS_TAXONOMY` などの定数 |
+
+`term_settings` は WP-CLI 等で**初期タームを投入する定義**であり、運用後に管理画面で増減したタームの正本ではない。
+
+## 画面表示は WordPress 実データ
+
+アーカイブ・詳細・絞り込み・ナビなど、**画面に出す投稿・ターム（カテゴリ）の一覧やラベル**は、必ず WordPress API / メインクエリから取得する。
+
+| 出したいもの | 取得方法（例） |
+|---|---|
+| 投稿一覧 | メインクエリ / `WP_Query` / `have_posts()` |
+| ターム一覧（絞り込み・タブ等） | `get_terms()` |
+| 投稿に付いたターム | `get_the_terms()` / `wp_get_post_terms()` |
+| タームのリンク・名称 | `get_term_link()`、`WP_Term` の `name` / `slug` |
+| ACF 等のフィールド | テーマの Acf 取得関数 / `get_field()` 等 |
+
+**禁止**: `Post::getTermSettings()` や `term_settings` 配列をループして、カテゴリ選択肢・ラベル・件数表示など**画面の実データ**として出力すること。
+
+管理画面でタームを追加・改名・並び替えてもフロントが古いままになる不具合の原因になる。
+
+一覧・詳細テンプレートでは **0件時表示** と **画像未設定時の `noImg.jpg`** も実装する（正本: `project/template/php.mdc`「動的コンテンツ（0件時）」／`project/template/image.mdc`「動的コンテンツの画像フォールバック」）。
+
+## 設定参照が許容される用途
+
+次は「実データ」ではなく設定・識別子の参照なので、`Post::` / `posts.php` を使ってよい。
+
+- 投稿タイプ slug・タクソノミースラッグの定数（`Post::NEWS`、`Post::NEWS_TAXONOMY`）
+- アーカイブの固定メタ（`getTitle` / `getDescription` / `noindex` / `assets_name`）
+- `category_settings` から**紐づく taxonomy slug を知る**（その後の `get_terms()` の引数にする）
+- `archive_query` をメインクエリ組み立てに使う（`inc/setup` 等）
+- CPT / タクソノミー登録、WP-CLI のターム投入・テンプレート生成、開発用コード同期（`inc/setup`・`inc/wp-cli`）
+
+taxonomy slug を `posts.php` から得たあとは、**ターム本体は必ず `get_terms()` 等で取得**する。
+
+## NG / OK の判断
+
+```php
+// NG: term_settings を画面のカテゴリ一覧として出力
+$terms = Post::getTermSettings($post_type)[$taxonomy] ?? [];
+foreach ($terms as $term) {
+    echo esc_html($term['label']);
+}
+
+// OK: 設定から taxonomy を知り、実タームは WP から取得
+$taxonomy = Post::NEWS_TAXONOMY; // または category_settings の slug
+$terms = get_terms([
+    'taxonomy'   => $taxonomy,
+    'hide_empty' => false,
+]);
+if (!is_wp_error($terms)) {
+    foreach ($terms as $term) {
+        echo esc_html($term->name);
+    }
+}
+```
+
+判断の目安: **管理画面で増減・編集されるものか？** → はいなら WP 実データ。コードで決める登録・メタ・初期投入なら `posts.php`。

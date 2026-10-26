@@ -1,0 +1,218 @@
+---
+description: テンプレート画像出力。render_img()、静的HTMLのpicture出し分け、ラッパーとel_img*分離、SVG
+globs:
+  - "**/*.php"
+  - "**/*.html"
+alwaysApply: false
+---
+
+# 画像出力ルール
+
+構成: PHP（`render_img()`）→ 動的画像フォールバック（`noImg`）→ 静的 HTML（`<picture>` 出し分け）→ alt → 配置 → ラッパー → SVG。
+
+PHP テンプレートでは原則 `render_img()` を使う。静的 `.html` では同関数と同等の `<picture>` を手書きする（「静的 HTML」）。
+
+## PHP（`render_img()`）
+
+WordPress / PHP テンプレート内では、原則として `inc/utils/render-img.php`（または同等パス）の `render_img()` を使用してください。直接 `<img>` や `<picture>` を手書きするのは、`render_img()` では表現できない明確な理由がある場合に限定します。
+
+### 基本
+
+`render_img()` には、少なくとも `fileName`、`alt`、`width`、`height` を指定してください。`loading` はファーストビューなど即時表示が必要な画像は `eager`、それ以外は原則 `lazy` を指定します。
+
+```php
+<?php render_img([
+    'fileName' => 'img_business_panel.jpg',
+    'alt'      => '制御盤の外観',
+    'width'    => '640',
+    'height'   => '420',
+    'loading'  => 'lazy',
+]); ?>
+```
+
+### レスポンシブ画像
+
+PC/SPで画像を切り替える場合は `responsive` を使用してください。SP画像を用意する場合は、基準画像名に対して `_sp` サフィックスの画像が使われる前提です。
+
+```php
+<?php render_img([
+    'fileName'   => 'img_mv.jpg',
+    'alt'        => '工場内の制御盤',
+    'width'      => '1440',
+    'height'     => '720',
+    'loading'    => 'eager',
+    'responsive' => [
+        'sp' => [
+            'width'  => '750',
+            'height' => '900',
+        ],
+    ],
+]); ?>
+```
+
+### 動的コンテンツの画像フォールバック（`noImg`）
+
+一覧・詳細を問わず、**CMS／投稿データ側の画像**（アイキャッチ・ACF 画像・添付など）を出す枠では、データに画像が無い場合に **`noImg.jpg`** を表示する。
+
+- 対象例: アーカイブカード、関連記事、単一投稿のメイン画像・サムネ枠
+- 判定: `has_post_thumbnail()` / フィールド空 / URL 無し など。無ければ `noImg.jpg`（テーマに既存ヘルパーがあればそれに合わせる）
+- **直接参照してよい**（ランタイムの未設定フォールバック）。下層情報起点の「仮画像を `noImg` からコピーして使用箇所名にリネームする」手順（`project/design-subpage.mdc`「画像（実装時）」）とは別物
+- 出力は原則 `render_img(['fileName' => 'noImg.jpg', ...])`（または既存の同等ヘルパー）。装飾扱いなら `alt=""`
+
+```php
+<?php
+$thumbFile = 'noImg.jpg';
+if (has_post_thumbnail()) {
+    // アイキャッチ／メディア URL から fileName 等を組み立てる（プロジェクト慣習に従う）
+}
+render_img([
+    'fileName' => $thumbFile,
+    'alt'      => '',
+    'width'    => '640',
+    'height'   => '420',
+    'loading'  => 'lazy',
+]);
+?>
+```
+
+## 静的 HTML（`.html`）
+
+静的 HTML では `render_img()` が使えないため、**jpg/png は `_origin` を直接参照せず**、画像変換成果物を `<picture>` で出し分ける。出力構造は `render_img()`（レスポンシブなし）と同じにする。
+
+### ディレクトリ対応
+
+| 役割 | パス | HTML での扱い |
+|------|------|----------------|
+| 元画像（変換入力） | `resources/_origin/`（`DIR_IMAGE_ORIGIN_PATH`） | **参照しない**（配置・変換用。公開パスではない） |
+| AVIF | `assets/images/avif/{basename}.avif` | `<source type="image/avif">`（プロジェクトの `ENABLE_AVIF` が有効なとき） |
+| WebP | `assets/images/webp/{basename}.webp` | `<source type="image/webp">` |
+| 圧縮フォールバック | `assets/images/compression/{basename}.{jpg\|png}` | `<img src>`（元の拡張子を維持） |
+
+- ベースネームは `_origin` のファイル名（拡張子除く）と同一
+- `compression` の拡張子は元画像と同じ（`.jpg` / `.png`）
+- SVG は本節の対象外（「SVG」に従い `svg/` を `<img>` 直参照）
+
+### 基本マークアップ（レスポンシブなし）
+
+```html
+<picture>
+  <source
+    srcset="./assets/images/avif/example.avif"
+    type="image/avif"
+    width="860"
+    height="522"
+  />
+  <source
+    srcset="./assets/images/webp/example.webp"
+    type="image/webp"
+    width="860"
+    height="522"
+  />
+  <img
+    src="./assets/images/compression/example.jpg"
+    alt="説明"
+    width="860"
+    height="522"
+    loading="lazy"
+  />
+</picture>
+```
+
+- `source` / `img` に `width`・`height` を付ける（`render_img()` と同様）
+- `loading` は FV 等は `eager`、それ以外は原則 `lazy`
+- AVIF が無効なプロジェクトでは `type="image/avif"` の `<source>` を出さない（`build-config` の `IMAGE_CONVERT.ENABLE_AVIF` 等を確認）
+
+### レスポンシブ（PC/SP 切替）
+
+`responsive.sp` 相当（PC ファースト・SP は `_sp` サフィックス）のときは、次の順にする。`{sp}` はプロジェクトの SP ブレイクポイント（未満判定の値。例: 768）。詳細は `render_img()` の出力順に揃える。
+
+1. SP の avif / webp（`media="(max-width: {sp}px)"`。AVIF 無効時は avif を出さない）
+2. **SP の compression**（同じ `media`、**`type` なし**。AVIF/WebP 非対応時の SP フォールバック）
+3. PC（基準ファイル）の avif / webp（media なし）
+4. `<img src>` は **PC の compression**
+
+`responsive.pc` 相当（SP ファースト）は、PC 側に `media="(min-width: {pc}px)"` を付け、**PC の compression も `type` なし source** として出し、`<img>` は SP の compression とする。
+
+### 禁止
+
+- `_origin/` を `src` / `srcset` に書くこと
+- jpg/png を単一の `<img>` だけで出すこと（`<picture>` + avif/webp/compression を省略すること）
+
+## alt属性
+
+- 意味を持つ画像は、画像の内容や役割が伝わる `alt` を記載してください。
+- 装飾目的の画像や、直後のテキストで同等の情報が伝わる画像は `alt` を空文字にしてください。
+- リンク画像やボタン画像は、画像の見た目ではなくリンク先や操作内容が分かる文言にしてください。
+- `alt` の考え方は `frontend-base/html.mdc` のアクセシビリティルールも参照してください。
+
+## 配置と編集
+
+jpg/png の追加は `resources/_origin/`（`build-config.js` の `DIR_IMAGE_ORIGIN_PATH`）。表示参照はテーマ配下の変換後ディレクトリ（「静的 HTML」の表）。画像変換の有無・AVIF 有効可否は各プロジェクトのビルド設定を確認してください。
+
+## 画像ラッパー（div）
+
+`render_img()` / 静的 HTML の `<picture>` の直上には **ラッパー用 `div` を1階層** 置く。詳細は `project/css/scss.mdc`「aspect-ratio」の画像。
+
+- Figma 実装: レイヤー構造・`slot`・ラッパー整理は `figma/figma-rule.mdc`「コンポーネント階層の実装」および `figma/interpretation.mdc`「余分なラッパーの排除」に従う
+### レイアウト用ラッパーと画像制御用 element 部品
+
+**`el_imgPortraitH` / `el_imgPortraitV` 等の画像制御用 `el_*` は、画像ラッパー（レイアウト枠）ではない。** 中身は画像のみを想定し、**比率・トリミングの共通化**が責務。
+
+| 層 | 役割 | 例 | 許可する主なスタイル |
+|---|---|---|---|
+| **レイアウト用ラッパー** | 配置・幅・flex 順序 | 親 `bl_*` の `&_imgWrap`、`un_{セクション}_imgWrap` | `width` / `flex-shrink` / `order` / `position` 等 |
+| **画像制御用 `el_*`** | 比率・クリップ | `el_imgPortraitH` | `aspect-ratio` / `border-radius` / `overflow` / 内側 `img` の `object-fit` |
+| **画像出力** | `render_img()` または静的 HTML の `<picture>` | — | — |
+
+- **`el_img*` を `bl_flexBox` 等の直下に置かない** — `slot img` 直下が `el_img*` でも、コーディング時は **レイアウト用ラッパーを1階層挟む**
+- **`modules/elements/` の画像制御用 `el_*` に `width` の固定値（`s(480)` 等）を書かない** — 幅はレイアウト用ラッパー側。`el_*` 内で親幅に追従させる場合のみ `width: 100%` 可
+- **`el_*` にレイアウト用スタイルを書かない** — `flex-shrink` / `order` / `position: absolute` 等はレイアウト用ラッパーまたは `pages/` の `un_*` 側（`project/css/scss.mdc`「部品の位置制御」）
+- **枠固定しない静的画像**には `aspect-ratio` と `object-fit: cover` を付けない。付ける／付けないの判定は `project/css/scss.mdc`「aspect-ratio」
+
+```html
+<!-- OK: レイアウト用ラッパー > 画像制御用 el_* > render_img() -->
+<div class="bl_flexBox_imgWrap">
+  <div class="el_imgPortraitH">
+    <?php render_img([...]); ?>
+  </div>
+  <!-- /.el_imgPortraitH -->
+</div>
+<!-- /.bl_flexBox_imgWrap -->
+
+<!-- NG: el_* をレイアウト枠兼用にする -->
+<div class="el_imgPortraitH">
+  <?php render_img([...]); ?>
+</div>
+```
+
+Figma に画像制御用 `el_*` が無く画像領域のみの場合は、レイアウト用ラッパー1階層 + `render_img()`（または静的 HTML の `<picture>`）とし、比率はラッパー側で持つ（例: `bl_flexBox_imgWrap` のみ）。
+
+```html
+<!-- OK: el_* なし（画像領域のみ） -->
+<div class="bl_flexBox_imgWrap">
+  <?php render_img([...]); ?>
+</div>
+```
+
+枠固定する画像の表示比率・トリミングは SCSS 側で制御する。書き出し済みの静的画像は内在比率に任せる（正本: `project/css/scss.mdc`「aspect-ratio」）。
+
+## SVG
+
+SVG は `render_img()` / 静的 HTML の `<picture>` 出し分けを **使わない**（`_origin` / webp / avif 変換対象外のため）。`<img>` で `assets/images/svg/` 配下を直接参照する。
+
+```php
+<img
+    src="<?php echo esc_url(get_template_directory_uri() . '/assets/images/svg/icon_example.svg'); ?>"
+    alt=""
+    width="130"
+    height="80"
+    loading="lazy"
+>
+```
+
+- **基本**: `<img>` 直書き（`alt`・`width`・`height`・`loading` を指定。ラスタ画像と同様のラッパー `div` 規則は「画像ラッパー（div）」に従う）
+- **`render_inline_svg()` を使う場合**（例外）:
+  - 依頼者がインライン出力を **明示指示** したとき
+  - CSS で SVG 内部の **fill / stroke / currentColor 等** を変更する必要があるとき
+
+格納先は `assets/images/svg/`（`project/structure.mdc` / `figma/assets.mdc` §2）。Figma 実装スキルは本節を参照のみ追記する。

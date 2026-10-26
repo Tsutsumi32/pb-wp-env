@@ -1,0 +1,18 @@
+---
+description: project/wordpress 入口。posts.php とWP実データの境界。CPT/タクソノミー実装時に参照
+globs:
+  - "**/inc/config/posts.php"
+  - "**/archive-*.php"
+  - "**/single-*.php"
+  - "**/taxonomy-*.php"
+alwaysApply: false
+---
+
+# WordPress Rules
+
+`project/wordpress` 配下の WordPress テーマ実装ルールのエントリーです。CPT・タクソノミー・アーカイブ周りを実装する際は、同ディレクトリのルールを参照してください。
+
+## 参照ルール
+
+- `posts.mdc`: `inc/config/posts.php` は **設定・初期状態・サンプル投入用**。画面に出す投稿・タームは `get_terms()` / メインクエリ等の **WordPress 実データ** を使う（「画面表示は WordPress 実データ」）。
+- 一覧のカテゴリ／ページネーションと詳細の「戻る」・スクロール: `project/template/list-detail-nav.mdc`（WP・PHP 共通の正本。ここへ複写しない）。

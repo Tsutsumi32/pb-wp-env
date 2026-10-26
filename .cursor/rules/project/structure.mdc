@@ -1,0 +1,70 @@
+---
+description: WordPress/静的PHPのプロジェクト構成。docker、テーマ、<docroot>、src/scss・src/js、inc/config・modules配置
+alwaysApply: true
+---
+
+
+# プロジェクト構成ルール
+
+WordPressサイトの構成を確認する際の共通ルールです。実装時は、各プロジェクトのWordPressルート、テーマルート、ビルド設定を確認し、テーマ内のテンプレート・アセット・設定ファイルを中心に編集してください。
+
+## 主要ディレクトリ
+
+- `docker/`: Docker環境がある場合のWordPress・フロントエンド用設定です。
+- `scripts/`: WP-CLIや環境構築用スクリプトがある場合の配置先です。
+- `<wordpress-root>/`: WordPress本体の配置ディレクトリです。
+- `<wordpress-root>/wp-content/themes/<theme-name>/`: 編集対象となる独自テーマです。
+- `package.json`: SCSS、JavaScript、画像変換、Browser Sync、lint、format などのnpmスクリプト定義がある場合に確認します。原稿シート・画像シートの xlsx 操作は **exceljs** をフロントエンド `devDependencies` に常設する（`openpyxl` は使わない。手順は Claude Code 側の `manuscript-sheet` / `image-sheet` スキル）。
+- `build-config.js` などのビルド設定ファイル: フロントエンドビルド対象、出力先、画像変換、Browser Sync などの設定がある場合に確認します。
+
+## WordPressテーマ構成
+
+- `functions.php`: テーマのエントリです。`inc/config`、`inc/utils`、`inc/head`、`inc/setup` などを読み込みます。
+- `header.php` / `footer.php`: サイト共通のヘッダー・フッターです。
+- `front-page.php`: トップページテンプレートです。
+- `page-*.php`: 固定ページごとのテンプレートです。
+- `archive-*.php` / `single-*.php` / `taxonomy-*.php`: カスタム投稿・一覧・詳細・タクソノミー関連のテンプレートです。
+- `inc/config/`: 固定ページ、カスタム投稿、プラグイン、定数などの設定を管理します。画面横断の会社情報（会社名・電話・FAX・住所等）は `consts.php`（`project/template/php.mdc`「会社情報・共通定数」）。サイトタイトルは `config.php` の `SITE_NAME`。
+- `inc/head/`: CSS・JS読み込み、title、description、OGP、favicon、noindex などhead関連を管理します。
+- `inc/setup/`: WordPressの機能有効化、管理画面調整、プラグイン初期設定などを管理します。
+- `inc/utils/`: テンプレートから再利用するヘルパー関数を配置します。
+- `modules/blocks/` / `modules/elements/`: テンプレートから読み込む PHP 部品。**`bl_*` は基本 `modules/blocks/` に別ファイル**、`el_*` は必要時に `modules/elements/`（分類・呼び出しは `project/template/php.mdc`「コンポーネント化」）。機能・ロジック単位（パンくず・確認画面等）は `modules/` 直下でも可。
+- 静的 PHP（`<docroot>`）でも同様。ページ固有部品は `includes/pages/<page-slug>/`。既存が `inc/modules/` の場合はそれに合わせます。
+- `inc/post/`: カスタム投稿に関する処理を配置します。
+- `inc/wp-cli/`: WP-CLIから利用する処理を配置します。
+
+## フロントエンド構成
+
+- `src/scss/`: SCSSの編集元です。新規実装・修正は原則ここに行います。
+- `src/scss/pages/`: ページ固有のSCSSです。`page-*.php` や `assets_name` と対応するページ単位のスタイルを配置します。
+- `src/scss/modules/`: header、footer、layout、block、element など再利用するUI部品のSCSSです。
+- `src/scss/foundation/`: 変数、mixin、function、animation など基盤系SCSSです。
+- `src/scss/global/` / `helpers/` / `utils/` / `js-contracts/`: グローバル設定、補助クラス、JS連携用スタイルなどを配置します。
+- `src/js/pages/`: ページ別JavaScriptのエントリです。ビルド設定ではこの配下が `dist/js/*.js` の主な出力元です。当該ページだけで完結する処理はここに収めます（詳細は `project/javascript/coading.mdc`「JavaScriptの配置判断」）。
+- `src/js/common/`: 全ページ共通の初期化処理を配置します。
+- `src/js/modules/`: プロジェクト横断で再利用する UI モジュールを配置します。
+- `src/js/modules/project/`: 当該プロジェクト内のみで複数ページから使う UI モジュールを配置します（例: `modules/blocks/` の PHP 部品向け JS）。配置判断は `project/javascript/coading.mdc`「JavaScriptの配置判断」を参照してください。
+- `src/js/features/`: プロジェクト横断で再利用する機能（`data-feature` 等）を配置します。
+- `src/js/features/project/`: 当該プロジェクト内のみで複数ページから使う機能を配置します。
+- `src/js/utils/`: 汎用ユーティリティを配置します。
+- `src/js/setup/`: 全画面共通のセットアップ。`initCommon.js` はプロジェクト横断の大元（案件でほぼ変えない）。当該プロジェクトの全画面共通初期化は `setup/project/initProject.js`（呼び出しは `project/javascript/coading.mdc`「JavaScriptの配置判断」）。
+- `src/js/lifecycle/`: ページ登録・起動など画面ライフサイクル関連を配置します（例: `createPage.js`）。
+- `resources/_origin/`: 画像変換の入力元（jpg/png）。`build-config.js` の `DIR_IMAGE_ORIGIN_PATH`（npm 実行階層からの相対）。テーマの公開ディレクトリ外に置く。
+- `assets/images/`: テーマで利用する変換後画像・SVG の配置先です（`DIR_IMAGE_TARGET_PATH`）。
+  - `assets/images/webp/`: 変換後のwebp画像を格納する置き場です。
+  - `assets/images/avif/`: 変換後のavif画像を格納する置き場です。
+  - `assets/images/svg/`: SVG画像を格納する置き場です。
+  - `assets/images/compression/`: 圧縮済みのjpg/png画像を格納する置き場です。HTML/PHP のフォールバック参照先です（静的 HTML の出し分けは `project/template/image.mdc`「静的 HTML」）。
+  - 画像格納ルール:
+    - SVGを手動追加する場合は `assets/images/svg/` 配下に配置します。
+    - jpg/pngを手動追加する場合は `resources/_origin/` 配下に配置します。
+- `dist/css/` / `dist/js/`: ビルド成果物です。手動編集は原則行わず、`src` 側を編集してビルドで反映してください。
+
+## 実装時の参照ルール
+
+- WordPress本体やプラグイン本体の直接編集は避け、独自テーマと設定・スクリプト側で対応してください。
+- 固定ページ情報やページごとの `assets_name` は `inc/config/pages.php` を確認・更新してください。
+- カスタム投稿、タクソノミー、投稿一覧条件は `inc/config/posts.php` を確認・更新してください。画面への投稿・ターム出力は `posts.php` ではなく WP 実データを使う（`project/wordpress/posts.mdc`）。
+- CSS/JSの読み込みは `inc/head/assets.php` の仕組みに従い、ページスラッグまたは `assets_name` に対応する `dist/css/*.css`、`dist/js/*.js` が読み込まれる前提で実装してください。
+- SCSSやJavaScriptを修正する場合は、`dist` ではなく `src` を編集元としてください。
+- ビルドやlint、formatは各プロジェクトの `package.json` やビルド設定のnpm scriptsを基準にしてください。コーディング依頼時の実行有無は `.cursor/rules/cursour-allways-rules.mdc`「ビルド・コンパイル」を参照してください。

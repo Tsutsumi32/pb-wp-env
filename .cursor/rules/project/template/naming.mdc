@@ -1,0 +1,240 @@
+---
+description: テンプレートclass命名（ly_/bl_/el_/un_/section_/has_）。data属性（JS用data-* / CSS用data-css-*）。親子関係。`_` はルートの次に1段まで（Figma階層の連結禁止）
+globs:
+  - "**/*.php"
+  - "**/*.html"
+alwaysApply: false
+---
+
+# テンプレート命名ルール
+
+WordPressのHTML/PHPテンプレートで使用するclass名は、PRECSSに準拠しつつ、下記の接頭辞ルールに従ってください。
+
+## class接頭辞
+
+- `ly_`: レイアウトコンポーネント。`main`、`section`、`container` など大きなレイアウトを担う要素に使用します。
+- `bl_`: ブロックコンポーネント。複数要素が合わさってできる再利用可能なコンテンツに使用します。
+- `el_`: エレメントコンポーネント。見出し、ボタン、ラベルなど最小単位の汎用コンポーネントに使用します。
+- `header`: ヘッダー領域とその配下の要素に使用します。
+- `footer`: フッター領域とその配下の要素に使用します。
+- `un_`: 画面固有要素。特定ページでのみ使用する固有レイアウトや固有パーツに使用します。
+- `hp_`: ヘルパー要素。表示制御、余白調整、汎用補助など、単体で機能する補助classに使用します。
+- `has_`: JavaScript連携要素。JSで制御するアニメーションや状態変化と契機を持つ要素に使用します。命名の詳細は下記「`has_`（JavaScript連携・アニメーション契約）」を参照してください。
+
+## 命名の考え方
+
+- 再利用できるUIは `bl_` または `el_` として定義し、ページ固有の見た目や配置は `un_` に閉じ込めてください。
+- 大きなレイアウト責務は `ly_` に寄せ、コンポーネント側へページ全体の余白や幅の責務を持たせすぎないでください。
+- **`ly_` / `bl_` / `el_` などのコンポーネント class と `un_` を同一タグに併記しない**（意味的な責務分離が破綻するため禁止）。レイアウト・コンポーネント用の要素と、画面固有のラッパーは **別要素に分離** する。
+- **例外**: `ly_section` と `section_{セクション名}` は同一タグに併記する（`figma/figma-rule.mdc`「HTML構造」）。
+
+```html
+<!-- NG: 同一タグにコンポーネント class と un_ を併記 -->
+<main class="ly_main un_privacy">
+<div class="ly_section un_privacy_section">
+<div class="ly_container un_privacy_container">
+<div class="el_textSlider un_recruit_textSliderOuter">
+
+<!-- OK: ly_section と section_ は同一タグ。un_ 親子は un_privacy ルートで満たす -->
+<section class="ly_section __page section_privacy">
+  <div class="ly_container __l">
+    <div class="un_privacy">
+      <div class="un_privacy_body">...</div>
+    </div>
+  </div>
+</section>
+
+<!-- OK: レイアウトは ly_、画面固有は内側の un_ ラッパー -->
+<main class="ly_main">
+  <div class="ly_section __page">
+    <div class="ly_container __l">
+      <div class="un_privacy">
+        ...
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- OK: 画面固有の配置は un_ ラッパーで包み、部品は内側の別要素 -->
+<div class="un_recruit_textSliderOuter">
+  <div class="el_textSlider">...</div>
+</div>
+```
+- 既存classの命名粒度に合わせ、同じ役割の要素には同じ接頭辞と構造を使ってください。
+- class名は役割やコンポーネント名が分かる名前にし、見た目だけに依存した名前は避けてください。
+- `has_` は「JSとの契機を持つ状態/連携」を示す目的で使用し、純粋な見た目調整だけの用途では使用しないでください。
+
+## class名の親子関係（HTML DOM）
+
+`ly_` / `bl_` / `el_` / `un_` / `header` / `footer` の class 名で、`_` は **ルートの次に1段まで**。Figma のレイヤー階層・フレーム名を `_` で連結しない。DOM が深くても class 名は伸ばさない。
+
+- ルート: `{接頭辞}_{名前}`（`header` / `footer` は接頭辞そのもの）
+- 子: `{接頭辞}_{名前}_{要素}`。この子は、**同じルート class を持つ親要素の内側**にだけ置く
+- DOM にルートが無い状態で子（`{接頭辞}_{名前}_{要素}`）を使わない
+- `{接頭辞}_{名前}_{要素}_{孫}` は作らない。内側で役割が違えば、同じ1段の別名にする（`bl_card_title` と `bl_card_lead`）。親の要素名を子へ連結しない
+- 複数語は camelCase（`btnList`、`stepBulletIcon`）。語の区切りに `_` を足さない
+- 中間がグルーピングだけのときは、1段の別名を付けるか class を増やさない。見た目だけのラッパーに段数用の class を足さない
+- `section_` はセクション識別専用で、この親子の親にはならない（下記）
+- `has_` の契機名は下記「`has_`」の形式に従い、本上限の対象外
+- SCSS の `&_` は `project/css/scss.mdc`「ネスト」。class の `_` 段数は本節が正
+
+```html
+<!-- NG: Figma の階層を _ で積む -->
+<div class="un_join">
+  <div class="un_join_body">
+    <p class="un_join_body_title">...</p>
+  </div>
+</div>
+
+<!-- OK: 子はいずれもルートの次の1段。入れ子が深くても名前は伸ばさない -->
+<div class="un_join">
+  <div class="un_join_body">
+    <p class="un_join_title">...</p>
+  </div>
+</div>
+```
+
+**`section_{セクション名}` との関係**
+
+- `section_` は **どのセクションかを識別するためだけ** に `ly_section` へ付与する（ページ SCSS のセクション根スタイル用）
+- **`section_` は `un_` の親子関係に関与しない**。`section_important` があっても `un_important_row` の親として機能しない
+- `un_{セクション名}_*` を使う場合、`un_{セクション名}` ルート要素を DOM に置く（`section_` の有無で省略しない）
+
+```html
+<!-- NG: un_important が無いのに un_important_row -->
+<section class="ly_section section_important">
+  <div class="ly_container">
+    <div class="un_important_row">...</div>
+  </div>
+</section>
+
+<!-- OK -->
+<section class="ly_section section_important">
+  <div class="ly_container">
+    <div class="un_important">
+      <div class="un_important_row">...</div>
+      <!-- /.un_important_row -->
+    </div>
+    <!-- /.un_important -->
+  </div>
+</section>
+```
+
+## `section_`（セクション識別）
+
+Figma 整備済みデータで、`main` 直下の **`<section>` に付与するセクション名 class** です。ページ SCSS のセクション単位スタイルのフックにも使います。
+
+| 形式 | 例 |
+|------|-----|
+| `section_{セクション名}` | `section_about`、`section_join` |
+
+- `{セクション名}` は Figma のセクション名レイヤーに合わせる（**snake_case**。Figma が camelCase の場合は単語区切りを `_` に変換）。
+- **`section_` は `<section>` タグに付与** する。`ly_section` を付与する場合は同一タグに併記する（`figma/figma-rule.mdc`「HTML構造」）。**`ly_section` は Variables → 任意の `SECTION(...)` → 非整備時は算出＋variables 追記**（同上「`ly_section` の使用条件」）。
+- セクション内の `un_*` class 名の `{セクション名}` 部分は `section_` と揃える。`section_` 自体は `un_` の親子の代わりにはならない（上記「class名の親子関係（HTML DOM）」）。
+- ページ SCSS での記述構造（`.section_*` と `.un_*` のフラット配置）は `project/css/scss.mdc`「ページ SCSS と `section_`」を参照する。
+
+## `un_`（画面固有要素）
+
+特定ページのセクション・固有パーツに使用します。Figma 整備済みデータでは、分類接頭辞のない **セクション名レイヤー**（例: `join`）に対応する要素に `un_{セクション名}_{要素}` を付与します。`un_` の DOM 親子は上記「class名の親子関係（HTML DOM）」に従う（`figma/figma-rule.mdc`「HTML構造」）。
+
+**`un_` が不要なケース**: 共通コンポーネント（`bl_*` 等）がページフレーム直下に置かれ、ページ固有の加工が不要なときは `un_` ラッパーを付けない（例: `bl_subMv`）。詳細は `figma/figma-rule.mdc`「HTML構造」。
+
+### 基本形式
+
+| 階層 | 形式 | 例 |
+|------|------|-----|
+| セクション内ルート | `un_{セクション名}` | `un_join`、`un_important` |
+| セクション内要素 | `un_{セクション名}_{コンテンツ・要素名}` | `un_join_row`、`un_join_text` |
+
+- `un_{セクション名}_*` を使う場合、**`un_{セクション名}` を DOM 上の親として置く**（`section_` の有無に関わらず省略しない）。
+- ページ固有の調整だけが目的で中間ラッパーが不要な場合でも、class 名の親子関係を満たすため `un_{セクション名}` は残す。
+
+- `{セクション名}` は `section_` と同じ（snake_case の `_` はセクション名の一部で、段数に数えない）。その次の `{要素名}` が1段。要素名の中の複数語は camelCase（`headWrap`、`btnList`）で、要素名では `_` を使わない。
+- Figma の1レイヤー名がそのまま要素名になる場合は、冗長な接頭辞を省略して camelCase に畳む（例: `joinContents` → `un_join_contents`）。レイヤーの親子パスは class に写さない。
+
+### ネストの深さ
+
+`section_` は `un_` の段数に含めない。段数の正は上記「class名の親子関係」。`un_` は **`un_{セクション名}` と `un_{セクション名}_{要素名}` だけ**。
+
+- グループ用の中間要素も同じ1段（`un_join_body`）。内側の要素にグループ名を連結しない（`un_join_text`。`un_join_body_text` は禁止）
+- Figma のフレームが深くても、レイヤー名を `_` で足さない。役割は camelCase の1要素名に畳む
+- 見た目だけの中間 `div` に、段数を増やすためだけの class は付けない
+
+```html
+<section class="ly_section __m section_join">
+  <div class="ly_container __m">
+    <div class="un_join">
+      <div class="un_join_row">
+        <div class="un_join_body">
+          <p class="un_join_text">...</p>
+          <div class="un_join_btnList">...</div>
+          <!-- /.un_join_btnList -->
+        </div>
+        <!-- /.un_join_body -->
+      </div>
+      <!-- /.un_join_row -->
+    </div>
+    <!-- /.un_join -->
+  </div>
+</section>
+```
+
+### その他
+
+- 状態・バリエーションは **modifier**（`__newTalent`、`__reverse` 等）を使い、class 名の階層を増やさない。
+- Figma のバリアント／UI 状態（`disabled` 等はセレクタ、`hover` は状態実装）の振り分けは `figma/figma-rule.mdc`「インスタンス・メインコンポーネント・バリアント」
+- 再利用可能な UI（Figma の `el_` / `bl_` コンポーネント）は `el_` / `bl_` のままとし、`un_` に含めない。
+- 詳細な接頭辞の使い分け・`ly_` との分離は上記「命名の考え方」を参照。
+
+## `has_`（JavaScript連携・アニメーション契約）
+
+`has_` は、見た目用の `un_` / `bl_` / `ly_` などとは別に、**JS処理と連動するアニメーションの初期状態・遷移・構造契約**を担うクラスです。実行時の状態切替は `is_`（例: `is_active`）を使い、`has_` はレシピ（契機）を示します。
+
+スタイル定義は `src/scss/animations/` 配下（`contracts/` または画面・コンポーネント単位のファイル）に集約し、`un_` などの通常スタイルと混在させないでください。
+
+### ① 汎用的な JS 処理・ライブラリ関連の契機
+
+横断的に再利用する JS の feature / module / ライブラリと対応づける契機です。クラス名から **汎用処理の契機であること**が分かるように命名してください。
+
+| 種別 | 命名形式 | 例 |
+|------|----------|-----|
+| feature（`features/`） | `has_{feature名}` または `has_{feature名}_{バリエーション}` | `has_observer_fadeUp`（`data-feature="scrollObserver"` と併用） |
+| module（`modules/`） | `has_{module名}` または `has_{module名}_{役割}` | `has_accordion`、`has_accordion_contents`、`has_tab`、`has_tabContent` |
+| ライブラリ | `has_{ライブラリ名}_{役割}` | `has_gsap_hscroll_trigger`、`has_gsap_hscroll_pin` |
+
+- `{feature名}` / `{module名}` / `{ライブラリ名}` は、対応する JS 側の識別子（`data-feature` の値、`data-module` の値、利用ライブラリ名）と揃えてください。
+- ページ名や画面固有の要素名は、この形式には含めないでください。
+
+### ② 画面固有・スタイル部品（コンポーネント）向けの契機
+
+汎用 feature / module / ライブラリに当てはまらない、**特定画面または特定スタイル部品に閉じた**アニメーション契機です。スコープが名前から判別できるように、次のいずれかの形式を使ってください。
+
+| 種別 | 命名形式 | 例 |
+|------|----------|-----|
+| 画面固有 | `has_{画面名}_xxx` | `has_top_recruitReveal`（トップページの採用ブロック用） |
+| スタイル部品（コンポーネント）固有 | `has_{コンポーネント名}_xxx` | `has_header_menuFade`（`header` コンポーネント配下の動き） |
+
+- `{画面名}` は `data-page` の値やページスラッグ・`assets_name` など、プロジェクトで画面を識別している名称に揃えてください。
+- `{コンポーネント名}` は `bl_` / `el_` / `header` など、当該スタイル部品の接頭辞・コンポーネント名に揃えてください。
+- `xxx` は役割や動きの種別が分かる名前にし、見た目の装飾だけを表す名前は避けてください。
+
+### 併用の例
+
+```html
+<!-- 汎用 observer + 画面固有の見た目 -->
+<div class="un_recruit_img has_observer_fadeUp" data-feature="scrollObserver">
+
+<!-- 画面固有の契機 + 汎用 JS -->
+<div class="un_recruit_img has_top_recruitReveal" data-feature="scrollObserver">
+```
+
+## data属性
+
+`data-*` 属性は用途ごとに JavaScript 連携と CSS 連携に分けます。
+
+- **JavaScript 連携**（`data-css-*` 以外）: `project/javascript/naming.mdc` を参照
+- **CSS 連携**（`data-css-*`）: `frontend-base/html.mdc`「data属性」および `project/css/scss.mdc`「data-css 属性」を参照
+
+テンプレートで新しい `data-*` 属性を追加する場合は、JS 用か CSS 用かを明確にし、class 名によるスタイル指定と混同しないでください。JavaScript から要素を特定する用途の class / id は付与しない（`project/javascript/coading.mdc`「DOM参照」）。
+
+画面の JS を実装・追加するときは、操作対象に JS 用 `data-*` が無ければテンプレート側へ追記する（class セレクタで代替しない。手順は `project/javascript/coading.mdc`「画面JS実装時の手順」）。

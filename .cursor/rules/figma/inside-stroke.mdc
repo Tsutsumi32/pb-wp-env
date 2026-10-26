@@ -1,0 +1,43 @@
+---
+description: Figma内側の線（Inside stroke）とpadding共存時のCSS実装（除外する時のみbox-shadow）
+alwaysApply: false
+---
+# 内側の線（Inside stroke）と padding
+
+Figma 実装時、**同一要素に padding と内側の線（Inside stroke）がある**場合の CSS 表現ルールです。整備済み・非整備の両方で本ファイルを正とします。
+
+## 方針
+
+- **原則**: 通常どおり **`border`** で実装する
+- **例外**: Stroke のレイアウト設定が **「除外する」**（`strokesIncludedInLayout: false`）のときだけ **`box-shadow: inset`** で線を表現する
+
+| Figma UI | Plugin API | CSS |
+|---|---|---|
+| 含まれる | `strokesIncludedInLayout: true` | `border`（既定） |
+| 除外する | `strokesIncludedInLayout: false` | `box-shadow: inset` |
+
+## 理由
+
+- **含まれる**: 内側 stroke がレイアウト寸法に入り、コンテンツは `padding + stroke` 分内側に寄る → CSS `border` と同挙動
+- **除外する**: stroke は描画のみでレイアウトに入らず、コンテンツは `padding` のまま → CSS `border` だと余白がずれるため `box-shadow: inset` が必要
+
+## 判定（MCP）
+
+- **`get_design_context` では判定できない**（含まれる／除外するの両方とも同じ `border` + `padding` になりがち）
+- **`use_figma`（Plugin API）** で対象ノードの `strokesIncludedInLayout` を読む（`false` のときだけ inset）
+- 補助: `get_metadata` の子オフセットが `padding` と一致すれば除外、`padding + strokeWeight` なら含まれる、程度の間接推定は可。確定は API を優先
+
+## 実装
+
+```scss
+// 原則（含まれる / 判定不能で除外が確認できない）: border
+padding: s(10);
+border: s(2) solid get-color('border', 'default');
+
+// 除外する（strokesIncludedInLayout: false）のみ: inset
+padding: s(10);
+box-shadow: inset 0 0 0 s(2) get-color('border', 'default');
+```
+
+- 線の太さ・色は Figma の stroke に合わせる（トークン参照は `figma/style.mdc` のカラー規則に従う）
+- **外側の線のみ**、または **padding が無い**場合は従来どおり `border` でよい

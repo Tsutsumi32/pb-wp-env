@@ -1,0 +1,362 @@
+---
+description: フォーム実装。formValidator、前後端バリデーション統一、formBranchToggle（分岐契約）、YubinBango、ブックマークレット
+globs:
+  - "**/contact*.php"
+  - "**/cf7.php"
+  - "**/cft-*.php"
+  - "**/src/js/features/form*.js"
+  - "**/src/js/features/formBranchToggle.js"
+  - "**/src/js/pages/contact.js"
+alwaysApply: false
+---
+
+
+# フォーム実装（formValidator + ブックマークレット）
+
+## 構成
+
+1. 参照サンプル・HTMLマークアップ・コントロール部品
+2. formValidator（フロントエンドバリデーション）
+3. フロントエンド・バックエンドバリデーションの統一
+4. フォーム種別出し分け（formBranchToggle + formValidator 契約 + CF7 枝分け設定）
+5. YubinBango・ブックマークレット用 data 属性
+
+## 参照する既存サンプル
+
+新規にフォームを実装する／既存フォームを改修する際は、プロジェクト種別に応じて以下の既存実装をサンプルとして参照すること。マークアップ・data 属性・YubinBango クラス等の付け方を、これらと揃えることで実装ブレを防ぐ。
+
+- **WordPress プロジェクト**: Contact Form 7 のフォーム定義ファイル `<theme-root>/inc/config/plugins/cf7/cf7.php`。CF7 ショートコードを含むフォーム HTML と、`mail` / `mail_2` の設定がまとまっている。
+- **静的 PHP プロジェクト**（テンプレートを `<docroot>` 配下に置く構成）: `<docroot>/contact.php` の `<form class="bl_form ...">` 〜 `</form>` の中身。素の `<input>` / `<select>` / `<textarea>` ベースで、本ルールの構造・属性付与がそのまま反映されている。
+
+どちらのプロジェクトでも、入力ブロックの構造（`bl_form_inputWrap` / `bl_form_headWrap` / `bl_form_inputInner`）、`data-form-validator-*` / `data-bookmarklet-input` の付け方、YubinBango の microformats クラスの位置は **共通仕様** なので、参照側の差は「CF7 ショートコードか素の input か」だけと捉えてよい。
+
+## 入力ブロックのHTMLマークアップ（`bl_form_inputWrap`）
+
+`bl_form_inputWrap` は入力1行（ラベル+入力欄+エラー）のラッパー。**この行ラッパー自体は常に `<div class="bl_form_inputWrap">`** とする。
+ラジオ／チェックボックス群や住所のような関連入力グループも、**外側の `<fieldset>` / `<legend>` は使わず**、同じく `<div class="bl_form_inputWrap">`（必要なら `__gapL` などモディファイア）だけでマークアップする。
+
+### 単一入力（テキスト・メール・電話・住所1行・本文 など）
+
+- 行ラッパー: `<div class="bl_form_inputWrap">`
+- 見出し: `<div class="bl_form_headWrap">` + `<label class="bl_form_head" for="<id>">`（`for` で入力の `id` を結ぶ）
+- 入力コントロール本体には `el_input` / `el_select` / `el_radio` / `el_checkbox` などの **element クラス**を付ける（後述の「コントロール部品（element）」参照）。
+
+```html
+<div class="bl_form_inputWrap">
+  <div class="bl_form_headWrap">
+    <label class="bl_form_head" for="contact-name">お名前</label>
+  </div>
+  <div class="bl_form_inputInner" data-form-validator-input="name" ...>
+    <input class="el_input" id="contact-name" ...>
+    <p class="bl_form_validate" data-form-validator-err="name" role="alert"></p>
+  </div>
+</div>
+```
+
+### グループ入力（ラジオ群・チェックボックス群・関連入力の塊）
+
+- **`<fieldset>` / `<legend>` は使わない**（マークアップとスタイルの統一のため）。
+- 行ラッパーは単一入力と同様 **`<div class="bl_form_inputWrap">`**（群の見出しと入力の縦間隔を広げたい場合は `__gapL` など）。
+- 群の見出しで `<label for>` が付けられない場合は、`<div class="bl_form_headWrap">` + `<span class="bl_form_head">…</span>` とする。
+
+```html
+<div class="bl_form_inputWrap __gapL">
+  <div class="bl_form_headWrap">
+    <span class="bl_form_head">お問い合わせの種類<span class="bl_form_req" aria-hidden="true">必須</span></span>
+  </div>
+  <div
+    class="bl_form_inputInner"
+    data-form-validator-input="inquiry-type"
+    data-form-validator-validate="require"
+    data-form-validator-label="お問い合わせの種類"
+    data-bookmarklet-input="radio"
+  >
+    <div class="bl_form_radioWrap">
+      <label class="el_radio">
+        <input type="radio" name="inquiry_type" value="inquiry" />
+        <span class="el_radio_label">お問い合わせ</span>
+      </label>
+      <!-- 他のラジオ <label> -->
+    </div>
+    <p class="bl_form_validate" data-form-validator-err="inquiry-type" role="alert"></p>
+  </div>
+</div>
+```
+
+ラジオ群を束ねるコンテナは **`<div class="bl_form_inputInner __radio">`**（`bl_form_inputInner` のモディファイア `__radio`）を使う。`data-form-validator-*` / `data-bookmarklet-input` はこのコンテナ側に付与する。ラジオの `<label>` / テキスト `<span>` には element クラス（`el_radio` / `el_radio_label`）を付ける。
+
+単独チェックボックス（プライバシーポリシー同意など）は群コンテナを使わず、`data-form-validator-*` を直近のラッパー `<div>` に付与し、`<label class="el_checkbox">` を直下に置く。
+
+```html
+<div data-form-validator-input="privacy" data-form-validator-validate="requireCheck" ...>
+  <label class="el_checkbox">
+    <input type="checkbox" name="privacy_agree" value="1">
+    <span class="el_checkbox_label">プライバシーポリシーに同意する</span>
+  </label>
+</div>
+<p class="bl_form_validate" data-form-validator-err="privacy" role="alert"></p>
+```
+
+### 判断フロー
+
+1. ラッパー内に**ユーザーが操作する入力が1つだけ**で、`<label for>` で一意に指せる → `<div class="bl_form_inputWrap">` のみ。
+2. **同じ `name` の複数オプション**（ラジオ・チェックボックス群）、または**意味的に1つのまとまり**となる複数フィールド（住所ブロックなど）→ やはり `<div class="bl_form_inputWrap">` を1つ使い、見出しは `label` か `span` のどちらかで揃える（**`<fieldset>` で囲まない**）。
+3. 単一コントロールに余計なラッパーを二重にしない。
+
+## コントロール部品（element）
+
+フォームコントロール単体の見た目（枠線・サイズ・タイポ・カスタム矢印など）は、`modules/elements/_formControl.scss` に集約された **`el_` 接頭辞のエレメント**で当てる。`_form.scss` 側の block には**コントロール単体のスタイル定義は置かない**（block は行ラッパー・住所グリッド・ポリシーブロック・送信ボタン等のレイアウトを担当）。
+
+| element クラス | 付与する対象 | 用途 |
+|---|---|---|
+| `el_input` | `<input type="text\|email\|tel\|...">` / `<textarea>` | テキスト系入力欄のベース |
+| `el_input__area` | `<textarea>` に `el_input` と併用 | テキストエリア用の高さ・縦リサイズ |
+| `el_select` | `<select>` | カスタムセレクト（`appearance: base-select` ベース） |
+| `el_select2` | `<select>` | フォーム用の高さ・矢印アイコン差し替え版（`el_select` と同系統） |
+| `el_radio` | ラジオの `<label>` | ラジオ1個分のクリック領域・見た目 |
+| `el_radio_label` | `<label class="el_radio">` 内のテキスト `<span>` | ラジオの表示テキスト部分 |
+| `el_checkbox` | チェックボックスの `<label>` | チェック1個分のクリック領域・見た目 |
+| `el_checkbox_label` | `<label class="el_checkbox">` 内のテキスト `<span>` | チェックボックスの表示テキスト部分 |
+
+ラジオ群を束ねるコンテナはエレメントではなく、block のモディファイア `<div class="bl_form_inputInner __radio">` を使う（「グループ入力」のサンプル参照）。
+
+### 使い分けのポイント
+
+- `bl_form_input` のような block 接頭辞のコントロールクラスは**廃止**。テキスト系入力は **必ず `el_input`** を付ける。
+- 旧 `bl_form_input__select` は `el_select`（既存エレメント）に統合済み。`<select class="el_select">` で使う。お問い合わせフォームの都道府県などは `el_select2` を使う場合がある。
+- **選択済みで `is_active` を付けたい `<select>`** には、他 feature と同様に **`data-feature="selectActiveState"`** を付ける（`src/js/features/selectActiveState.js` を `setup/initCommon.js` から初期化。`value` が空でないとき `<select>` に `is_active` を付与し、初期表示・`change` / `input` で同期）。プレースホルダ相当は先頭の `value=""` の `option` とし、未選択時は `is_active` を付けない。
+- ラジオの `<label>` / テキスト `<span>` は `el_radio` / `el_radio_label`、チェックボックスは `el_checkbox` / `el_checkbox_label` で **別系統**（共通の `el_checkLabel` / `el_checkText` は使わない）。
+- ラジオ群を束ねるコンテナは `<div class="bl_form_inputInner __radio">` を使い、`data-form-validator-*` / `data-bookmarklet-input` はこのコンテナに付ける。
+- バリデーションエラー時の枠線色変更（`is_error` 時）は、`_form.scss` 側のセレクタが `:is(.el_input, .el_select)` を対象にしているので、上記の element クラスが付いていれば自動的に効く。
+
+## formValidator（`src/js/features/formValidator.js`）
+
+- フォームのルートに `data-feature="formValidator"` を付与する。種別がある場合は `data-form-validator-form`（例: `contact`）も付与する。
+- 「内容を確認する」等の送信前ボタンには `data-action="formValidator.submit"` を付与する（CF7 の `[submit]` とは別要素でも可）。
+- 通常フォーム（`platform: 'externalService'`）で送信中ローディング（`[data-loading]` / `.el_loading`）を出す場合は、送信ボタンに `data-form-validator-loading` を付与する。CF7 利用時は属性なしでも常時ローディングする。
+- **各入力ブロックのラッパー**（CF7 ショートコードを包む要素）に次を揃える。
+  - `data-form-validator-input`: 項目キー（確認画面の `data-form-validator-confirm` と同一文字列で対応させる）。
+  - `data-form-validator-validate`: スペース区切りでバリデーション種別。`data-form-validator-validate` がある要素だけが検証対象になるため、必須・形式チェックが必要な項目では**必ず**付与する。
+  - 利用可能な種別の例: `require`, `email`, `tel`, `zip`, `maxLength`, `number`, `katakana`, `hiragana`, `file`, `password`, `requireCheck`（チェックボックス群の必須など）。一覧と実装は `src/js/features/formValidator.js` を正とする。
+  - `maxLength` を使う場合は `data-form-validator-max` に上限文字数を数値で指定する。
+  - ファイル検証（`file`）を使う場合は `data-form-validator-max-size` に上限 MB を指定し、CF7 の `[file]` を `data-form-validator-file-wrapper` 付きのラッパーで囲む。
+  - エラーメッセージ用に `data-form-validator-label` に人が読む項目名を入れる。
+  - エラー表示先には `data-form-validator-err` を、値は `data-form-validator-input` と同じキーにする。
+- サーバー側エラー表示ブロックには `data-form-validator-server-error` を付与する。
+- ページ JS で `formValidator.init()` を必ず呼ぶ。静的 PHP フォーム（サーバー POST 送信）は `{ platform: 'externalService' }` を指定する。
+- **分岐フォーム**（`formBranchToggle`）と併用するときの inactive・エラー欄解決・サーバー再描画・確認手順は、後述「フォーム種別出し分け」内の **formValidator との契約** を正とする（ここへ重複記載しない）。
+
+### フロントエンド・バックエンドバリデーションの統一
+
+フォーム実装時は、**フロントエンド（formValidator）の適用を必須**とし、**サーバー側検証と条件・メッセージを揃える**こと。クライアントだけ通りサーバーで弾かれる状態は禁止。
+
+#### フロントエンド（必須）
+
+- 送信前に検証するフォームは、例外なく `data-feature="formValidator"` と `data-action="formValidator.submit"` を付与し、対象ページの JS で `formValidator.init()` を初期化する。
+- 必須・形式チェックが必要な**すべての項目**に `data-form-validator-validate` を付ける（「サーバー側だけ検証」は不可）。
+- グループ入力（生年月日・住所など）は、個別項目の `data-form-validator-validate` に加え、サーバー側と同じ意味のグループキー（`data-form-validator-err-group` / `-err-group-area`）を付与する。
+
+#### バックエンドとの対応づけ
+
+- サーバー側の検証関数（例: `<docroot>/includes/utils/contact-form.php` の `contact_form_validate()`）を先に確認し、各項目の**必須・形式・桁数・選択肢・グループ判定**を一覧化してから `data-form-validator-validate` を決める。
+- `data-form-validator-input` のキーと、サーバー側エラー配列のキー（`$errors['name']` 等）を一致させる。PHP テンプレートの `$fieldErr()` や確認画面マッピングも同じキーを使う。
+- 検証種別・上限値はサーバーと同じ基準にする（例: フリガナは `katakana`、希望年収は `number` + `data-form-validator-max`、郵便番号は `zip`、生年月日は年月日の整合性チェック）。
+- エラーメッセージは、可能な範囲でサーバー側と同じ文言に揃える（ユーザーが再送信時にメッセージが変わらないようにする）。
+- `formValidator.js` に存在しない検証種別をサーバー側で使う場合は、**先に `formValidator.js` を拡張**してから `data-form-validator-validate` を付与する（サーバーだけの独自検証にしない）。
+
+#### 実装時チェックリスト
+
+- [ ] 全検証対象項目に `data-form-validator-validate` を付けた
+- [ ] 対象ページ JS で `formValidator.init()` を呼んだ
+- [ ] サーバー側の各検証条件と `data-form-validator-validate` が一致している
+- [ ] `data-form-validator-input` キーとサーバー側エラーキーが一致している
+- [ ] グループ項目の `err-group` キーとサーバー側グループエラーキーが一致している
+
+### グループ集約エラー表示（`data-form-validator-err-group` / `-err-group-area`）
+
+住所のように **複数の入力項目を 1 つの意味的なグループとして扱い、エラーは末尾にまとめて表示したい** 場合は、個別の `data-form-validator-err` を使わずに、グループ集約方式を使う。各項目の下に細かいエラーが並ぶのを避け、ユーザーの視線移動を減らせる。
+
+- 同じグループに属する各入力項目（`data-form-validator-input` を持つラッパー）に、**同じキーの `data-form-validator-err-group="<group>"`** を付ける。
+- そのグループの **末尾（通常はその `<div class="bl_form_inputWrap">` 内の `bl_form_inputInner` の最後）** に、エラー集約用の **`<div class="bl_form_validate __group" data-form-validator-err-group-area="<group>" role="alert">`** を置く。
+  - エラーメッセージは `<ul class="bl_form_sendValidateErrorList"><li>…</li></ul>` 形式で描画されるため、**集約エリアの要素は `<p>` ではなく `<div>` にする**（`<p>` 内に `<ul>` を入れるのは HTML 仕様上不正）。
+  - `__group` モディファイアにより、エラーが無い時は集約エリア自体が非表示（`:empty`）になる。
+- グループ集約モードでは、項目ごとの `<p data-form-validator-err="…">` は **置かない**（個別表示と集約表示の二重出力を避ける）。
+- 入力欄の `is_error` 赤枠は、項目ラッパー（`data-form-validator-input` 付きの要素）に JS が直接 `is_error` を付与するため、既存セレクタ（`.bl_form_inputInner.is_error :is(.el_input, .el_select)`）がそのまま効く。
+- 個別表示（`data-form-validator-err`）と集約表示（`data-form-validator-err-group` + `-err-group-area`）は **項目単位で併用可** だが、同じ項目に両方付ける運用は推奨しない（個別 `<p>` にも、集約エリアにも同じ文言が出てしまう）。
+
+```html
+<div class="bl_form_inputWrap">
+  <div class="bl_form_headWrap">
+    <span class="bl_form_head">住所<span class="bl_form_req" aria-hidden="true">必須</span></span>
+  </div>
+  <div class="bl_form_inputInner">
+    <div class="bl_form_addressGrid">
+      <div class="bl_form_addressCell">
+        <div
+          class="bl_form_inputInner"
+          data-form-validator-input="zip"
+          data-form-validator-validate="require zip"
+          data-form-validator-label="郵便番号"
+          data-form-validator-err-group="address"
+        >
+          <input class="el_input p-postal-code" ... />
+        </div>
+      </div>
+      <!-- prefecture / address-line も同様に data-form-validator-err-group="address" を付与 -->
+    </div>
+    <!-- 末尾にまとめて表示 -->
+    <div class="bl_form_validate __group" data-form-validator-err-group-area="address" role="alert"></div>
+  </div>
+</div>
+```
+
+### よくある抜け
+
+- `data-form-validator-input` だけ付けて `data-form-validator-validate` を付けない → **その項目はクライアント検証されない**。
+- サーバー側だけ検証し、フロントに `data-form-validator-validate` を付けない → 送信後に初めてエラーが出る。**フロント・バックエンドを必ず揃える**。
+- フリガナ・数値・生年月日など、サーバー側の形式チェックに対応する `data-form-validator-validate` を付け忘れる → クライアントは通過するがサーバーで失敗する。
+- `formValidator.init()` の呼び忘れ → 送信ボタンがバリデーションされず、そのまま POST される。
+- グループ集約モードで、項目側に `data-form-validator-err-group` を付け忘れる → その項目のエラーだけ集約エリアに出ない。
+- 集約エリア要素を `<p>` で書く → 中身が `<ul>` になるため HTML 仕様違反。`<div>` を使う。
+- 分岐で同一キーを共有しているのに err 解決が `querySelector` 先頭のまま → **必須エラーが非表示枝に書かれ見えない**（契約は「フォーム種別出し分け」→「formValidator との契約」）。
+
+## フォーム種別出し分け（formBranchToggle + CF7 枝分け設定）
+
+お問い合わせ種別などの選択で項目を出し分ける場合は、フロントの `formBranchToggle` とサーバーの枝分け設定（`cft-branches.php`）をセットで運用する。分岐と `formValidator` の契約は本節「formValidator との契約」にまとめる（他ファイルへ分散しない）。
+
+### formValidator との契約（分岐フォーム・正本）
+
+同一の `data-form-validator-input` / `-err` / `-err-group-area` キーを複数ブランチで共有できる。このとき `querySelector` 先頭だけを見ると、非表示枝のエラー欄に書かれ必須エラーが見えない。検証自体は動いていても表示だけ欠けるため、次を **実装必須** とする。
+
+| 対象 | 契約 |
+|------|------|
+| `formValidator.js` | `data-form-validator-err`（および `-err-group-area`）の解決は **検証対象 item 配下 → `data-form-validator-inactive="true"` でない要素 → 先頭** の順。`resolveErrorArea` / `resolveErrorGroupArea` 経由に統一する |
+| `formBranchToggle.js` | 非表示枝は **`hidden` + `data-form-validator-inactive="true"` + 配下の `input` / `select` / `textarea` を `disabled`**（`type="hidden"` は除外）。表示枝はこれらを外す |
+| フォーム PHP テンプレート | サーバー再描画（バリデーション失敗の再表示など）でも、**選択中ブランチに合わせて** 表示 / `inactive` / `disabled` / エラー文言の出力位置を揃える。JS 初期化前でも正しい枝が見えること |
+| エラー再表示の値埋め | 空の必須項目を **デフォルト値で埋めない**（例: 未選択ラジオへ先頭 option を勝手に `checked` にしない）。送信値・エラー状態をそのまま再現する |
+
+**確認手順**（分岐＋必須があるフォームでは実装後に必ず実施）:
+
+1. 非表示側になるブランチを選択する
+2. その枝の必須を未入力のまま送信する
+3. 必須エラーが **表示中の枝のエラー欄** に見えること（非表示枝側にだけ書かれていないこと）
+
+対象の主なパス: `src/js/features/formValidator.js` / `src/js/features/formBranchToggle.js` / 該当フォームの PHP テンプレート（例: `<docroot>/contact.php`、WP なら `cf7.php`）。
+
+### なぜサーバー設定が必要か
+
+非表示枝の入力は `disabled` になりブラウザから送られない。一方 CF7 の SWV は `[radio]` などを常に必須扱いするため、他種別選択時でも「未入力」として `validation_failed` になる。これを防ぐため、inactive 時の SWV 補完・メール除外を設定で管理する。
+
+### フロント（必須）
+
+- 基準コントロール（ラジオ／セレクト）の `name` をフォームの `data-form-branch-control` に指定する。
+- 出し分けブロックに `data-form-branch="<種別 value>"` を付与する（複数値は空白区切り）。
+- 非表示枝の `hidden` / `inactive` / `disabled`、および初期マークアップの付け方は上記「formValidator との契約」に従う。初期から非表示の枝には、マークアップ時点でも `hidden` と `data-form-validator-inactive="true"` を付けておく（`disabled` は JS の sync、またはサーバー再描画時に選択ブランチへ合わせて付与）。
+- ページ JS で `formBranchToggle.init({ form })` を呼ぶ。
+- **CF7**: `<form>` は CF7 が生成するため、`data-form-branch-toggle` / `data-form-branch-control` は内側ルート（例: `.bl_form`）に付けてよい（`formBranchToggle` が親 `form` を束ねる）。
+
+### サーバー（`<theme-root>/inc/config/plugins/cf7/cft-branches.php`）
+
+`CFT_FORM_BRANCH` に次を定義する。
+
+| キー | 意味 |
+|------|------|
+| `control` | 枝分け基準の input `name`（`data-form-branch-control` と同じ） |
+| `fields.<CF7 name>.branches` | そのフィールドが有効な control の value（`data-form-branch` と同じ文字列） |
+| `fields.*.swv_placeholder` | inactive かつ未送信時に `$_POST` へ入れる値（**CF7 必須タグ `*` のフィールドだけ**。付け方は直後の注意） |
+| `fields.*.clear_posted` | inactive 時に `posted_data` を空にし、メール（`exclude_blank`）から除外する |
+
+`swv_placeholder` の注意:
+
+- **付ける対象は CF7 必須タグ（`[textarea*]` / `[select*]` / `[text*]` 等）だけ。** 非必須は空で SWV を通る。`clear_posted` のみでよい
+- **`[select]` / `[select*]` の値は、既存 option の `value` と完全一致**させる。テキスト用ダミー（「（新卒のため対象外）」など）をセレクトへ流用すると enum で `validation_failed` になり、確認画面の送信が入力画面（入力状態のまま）へ戻される
+- **`[textarea*]` / `[text*]`** は空でない文字列でよい
+
+カスタム検証ではフィールド名ごとに `if (!cft_is_branch_field_active($name)) return $result;` でスキップする（種別ハードコードは避ける）。
+
+### 追加・変更時の手順
+
+1. `cf7.php` の HTML に `data-form-branch` を付ける
+2. **同じ種別文字列**で `cft-branches.php` の `fields` にエントリを追加する
+3. CF7 必須タグ（`*`）の項目にだけ `swv_placeholder` を書く。セレクトは option の `value` と一致させる。非必須セレクトには付けない
+4. メールに出したくない項目は `clear_posted => true`
+5. `cft-validate.php` の検証で `cft_is_branch_field_active($name)` を使う
+
+### チェックリスト
+
+- [ ] フロントの `data-form-branch` / `data-form-branch-control` と `CFT_FORM_BRANCH` の文字列が一致している
+- [ ] 枝専用フィールドがすべて `fields` に載っている
+- [ ] CF7 `*` の枝フィールドにだけ `swv_placeholder` がある
+- [ ] `[select]` のプレースホルダが option の `value` と一致している（テキスト用ダミーを使っていない）
+- [ ] 非必須セレクトに `swv_placeholder` を付けていない
+- [ ] サーバー検証のスキップが `cft_is_branch_field_active()` 経由になっている
+- [ ] 非表示枝が `hidden` + `inactive` + 配下 `disabled` になっている（契約どおり）
+- [ ] `formValidator` の err / err-group-area 解決が活性側優先になっている
+- [ ] サーバー再描画で選択ブランチの表示 / inactive / disabled / エラー位置が揃っている
+- [ ] エラー再表示で空の必須をデフォルト埋めしていない
+- [ ] 「非表示側ブランチ選択 → 未入力送信 → 表示側にエラーが見える」を確認した
+
+## 郵便番号→住所自動入力（YubinBango.js）
+
+住所入力欄を持つフォームでは、郵便番号入力から都道府県・市区町村等を自動入力するために [YubinBango.js](https://yubinbango.github.io/) を利用する。マークアップ側では microformats のクラス命名規則（h-card / h-adr ベース）で対象フィールドを示すだけで、JS の初期化コードは不要。
+
+### スクリプト読み込み
+
+- 住所入力を持つページ（一般的にお問い合わせページ）でのみ読み込む。全ページ読み込みはしない。
+- WordPress: テーマの head 関連処理（例: `inc/head/assets.php` などスクリプト出し分けを行う箇所）で、対象ページ判定を行ったうえで CDN タグを出力する。
+- 静的 PHP: 同様にページごとのアセット読み込み処理（例: `<docroot>/includes/head/assets.php`）で対象ページ判定のうえ出力する。
+- CDN タグの例:
+
+```html
+<script src="https://yubinbango.github.io/yubinbango/yubinbango.js"></script>
+```
+
+### マークアップで付与するクラス
+
+YubinBango.js が起動するためには、**フォームに `h-adr` クラス**を、**フォーム内に `p-country-name` を持つ要素**を1つ置く必要がある。そのうえで、住所入力先のフィールドに用途別のクラスを付ける。
+
+- フォーム本体に `h-adr` を追加（例: `<form class="bl_form h-adr" ...>`）。
+- フォーム直下に国名指定の要素を置く: `<span class="p-country-name" hidden>Japan</span>`。
+- 住所フィールド側のクラス対応:
+
+| クラス | 付与する対象 | 動作 |
+|--------|--------------|------|
+| `p-postal-code` | 郵便番号 `<input>` | YubinBango がこの入力欄を監視し、7桁揃ったタイミングで住所APIを叩く。`maxlength="8"`（`123-4567` 想定）を併用すると親切。 |
+| `p-region` | 都道府県 `<input>` または `<select>` | `<select>` の場合、`option` の `value` が `東京都` 等の県名と一致していれば自動選択される。 |
+| `p-locality` | 市区町村の `<input>` | 市区町村名（例: `渋谷区神宮前`）が入る。 |
+| `p-street-address` | 番地の `<input>` | 番地（取得できる場合のみ）が入る。 |
+| `p-extended-address` | 建物名の `<input>` | 建物名（基本ユーザー入力。自動入力対象外） |
+
+### フィールド構成パターン
+
+住所セクションのフィールド分割によって、`p-locality` / `p-street-address` の付け方が変わる。
+
+- **3フィールド構成**（郵便番号 / 都道府県 / 市区町村+番地+建物名 を1欄にまとめる）
+  - 「市区町村+番地+建物名」の `<input>` に `p-locality` を付与する。市区町村のみが自動入力され、ユーザーが続けて番地と建物名を入力する。
+  - ブラウザの `autocomplete` は、`<input type="text">` では `street-address` がバリデータで不正扱いになりやすいため、結合1行欄には `address-line1` を付けるか、付与しない。
+- **4フィールド構成以上**（郵便番号 / 都道府県 / 市区町村 / 番地以降 など）
+  - 市区町村 `<input>` に `p-locality`、番地 `<input>` に `p-street-address`、建物名 `<input>` に `p-extended-address`（任意）を付与する。
+
+### formValidator との関係
+
+- YubinBango.js は `p-postal-code` 欄の入力イベントを監視するだけで、`submit` には介入しない。`data-form-validator-validate="require zip"` などのクライアント検証と **競合しない**。
+- 自動入力後にユーザーが住所欄を編集することは想定内なので、`p-region` / `p-locality` を付けたフィールドにも、必要に応じて通常通り `data-form-validator-*` を併設してよい。
+
+## `data-bookmarklet-input`（`_docs/bookmarklet.forminput.md`）
+
+ブックマークレットは `[data-bookmarklet-input]` のラッパー内から、種別に応じて有効な `input` / `textarea` / `select` を探して値を入れる（`prefecture` は **`<select>` なら option 一致で選択、なければ一行 `input`**。詳細は `_docs/bookmarklet.forminput.md`）。フォーム項目のラッパーに、次の**許可された値のいずれか**を `data-bookmarklet-input` で付与する（仕様外の文字列は避ける）。
+
+| 値 | 用途の目安 |
+|----|------------|
+| `text` | 一行テキスト・長文（textarea は `text` でダミー長文が入る） |
+| `number` | 半角数字のみの一行入力（希望年収など。既定: 400） |
+| `number-large` / `number-mid` / `number-small` | 桁数別の半角数字（既定: 100 / 35 / 5）。年齢など |
+| `name` | 氏名 |
+| `hiragana` / `katakana` | ふりがな |
+| `email` | メール（確認用の2項目目も `email` でよい） |
+| `zip` / `prefecture` / `city` / `address2` | 住所系（`prefecture` は `<input>` または `<select>`） |
+| `tel` | 電話・FAX など電話形式の一行入力 |
+| `password` | パスワード欄 |
+| `radio` / `checkbox` / `select` | それぞれのコントロール種に合わせる |
+
+ファイル入力のみのブロックは、ブックマークレットがファイルを自動選択しない仕様のため、プロジェクトでは `file` を付けて種別を明示している場合がある。新規項目では `_docs/bookmarklet.forminput.md` の一覧と、本ファイル冒頭の「参照する既存サンプル」（WordPress: `cf7.php` / 静的 PHP: `contact.php`）の付け方を揃えること。

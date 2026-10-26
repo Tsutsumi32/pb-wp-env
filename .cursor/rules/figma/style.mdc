@@ -1,0 +1,188 @@
+---
+description: figmaMCP実装時のスタイル・トークン参照ルール（通常はデザイン通り・キーも数値も丸め禁止・非整備の丸めはセクション余白のみ・Variables/TextStyleは突合・BP間は同一キー・フォントはconfigs/$base_fontゲート）
+alwaysApply: false
+---
+# figmaMCP スタイルルール
+
+Figma のスタイルを SCSS の変数・mixin へ反映するルールです。**`@figma-style-coding` / `@figma-coding` のスタイル工程**で適用します（テンプレートのみでは読まない）。
+
+**構成**: **通常実装はデザイン通り**（依頼で「非整備」と明示されない限り通常扱い）。**キーも数値も丸め禁止**。Variables / Text Styles 適用箇所はキーと値を突合。未適用箇所は個別実装または不足キーをデザイン値で追記。**近いキー／近い数値への丸めは通常禁止**（片側・依頼明示の非整備でも **`$section-sizes` / `ly_section` のみ**許容。その他の余白は Figma 通り）。**ブレイクポイント間は同一キー**。既存慣習優先。
+
+## 1. 基本方針
+
+本節は **Figma MCP 実装（`@figma-style-coding` / `@figma-coding` 系）** の variables 扱い。下層情報起点（`@subpage-design-implement`）は `project/design-subpage.mdc`「variables（実装時）」。`.cursor/external/`（`project-rules-*.md` / `figma-conventions-*.md`）がある案件はそちらの「この案件では」を優先（本節の追記方針は適用外）。
+
+### 通常の Figma デザイン
+
+- **デフォルト**: 依頼に「非整備」等の明示がなければ **通常扱い**（本項）
+- **原則はデザイン通り**（見た目・**キー・数値**を Figma に合わせる。基本は忠実再現）
+- **キーも数値も丸め禁止**（通常実装）:
+  - **近い・だいたい同じ・既存に近い・きれいな数に揃える**は理由にしない
+  - NG 例（キー）: Figma `paragraph/l` → Code で近い `paragraph/m`
+  - NG 例（数値）: Figma `18` → `s(16)` / `s(20)`。Figma `#1A2B3C` → 近い別色トークン
+  - OK 例: Figma `18` → `s(18)`（または同一値の既存キー）。値ずれの既存キーは画面実装で書き換えず同期スキルへ
+- **Variables / Text Styles が Figma 側で適用されている箇所**:
+  - 対応する Code 側キーと **突合**し、**キー名・値とも Figma と同一**にする
+  - **近い別キーへの丸め・寄せはしない**
+  - **既存キーの値が Figma と異なる**場合は、画面実装のついでに書き換えず `@figma-tokens-setup` / `@figma-tokens-sync`（またはユーザー明示）で **値を同一化**する
+  - **Figma 側にあるのに Code に無い**キーは、**Figma の値のまま最小追記**する（**確認待ちなし**）
+- **Variables / Text Styles が未適用の箇所**:
+  - **無理に既存変数へマッピングしない**（近い余白・字サイズ・色への寄せも禁止）
+  - ページ／部品 SCSS で **デザイン通りに個別実装**する（`font()` の値直指定など）
+  - 再利用が必要で、かつ Figma 上に相当定義がある（または明示依頼がある）場合のみ、**デザイン通りの値**で変数を追記する
+- 色・タイポ・余白・半径などで Variables / Styles があるものは **variables 経由で参照**する（未適用箇所への生値散在は上記のとおり許容）
+
+### 片側デザイン・非整備デザイン
+
+- **片側デザイン**: PC/SP の片方のみ提供。欠け側は厳密再現を求めない（`figma/responsive.mdc`「片側デザインのみ」）。**両デザインがある場合は本項の基本対応を使わず、もう一方もデザイン通り**（同「両デザイン」原則）
+- **非整備**: **依頼時に「非整備」と明記されたときだけ**適用。エージェントが見た目から推定して非整備扱いにしない
+- **近い既存キーへの丸め**は、上記に該当するときでも **`$section-sizes` / `ly_section`（第一階層のセクション上下余白）のみ**許容する（目安 50px 未満。詳細は `project/css/scss.mdc`「セクション余白・キー統合」）
+- **その他の余白は原則 Figma 通り**（丸め・近いキー寄せ禁止）: `$content-space` / `ut_space`、`$container-sizes` / `ly_container` の左右・幅、要素間ギャップ、padding、リスト間、部品内余白など。未適用なら個別実装またはデザイン値のまま別キー追記
+- 片側の欠け側の **基本対応**（余白のひと段階落とし等）は `figma/responsive.mdc`（本項のキー丸めとは別）
+- 欠け側・非整備時の調整でも **既存 map 値の書き換え**や **BP 間のキー切替**はしない
+
+### 共通
+
+- **ブレイクポイント間は同一キー（原則）**: PC / SP 等で map 内に値を持つトークンは、要素ごとに **キーを1つ選んで両側とも同じキーを使う**。PC/SP の見た目差は **そのキー内のブレイクポイント値**で吸収する（実装側でキーを切り替えない）
+  - 対象: `$text-styles` / `$section-sizes` / `$content-space` / `$container-sizes` / `$effects` など、variables でブレイクポイント管理しているもの全般
+  - NG 例: PC で `paragraph/l`、SP で `paragraph/m` に差し替え／PC で `ly_section __l`、SP で `__m` に差し替え
+  - OK 例: PC・SP とも `paragraph/l`（`ly_section __l` 等）。SP 用のサイズはキー内の `sp`（または strategy 側）の値を使う
+  - **例外**は原則 **手動の微調整のみ**（エージェントが自動でキーを分岐しない）
+- **既にコーディングが進んでいる案件**は、そのプロジェクトの既存方針に合わせる（例: `font($_key:)` と値直指定の混在）。**カラーは例外**で `$colors` + `get-color()` を基本とする（`project/css/scss.mdc`「カラー」）
+- 大規模な基盤差し替えは `@figma-tokens-setup`（必ずリセット → JSON 同期 / 何もしない）
+- Figma URL で指定された対象範囲のみを抽出対象にする
+
+## 2. キー変換（共通）
+
+| Figma | SCSS |
+|-------|------|
+| 変数名の `/` | `-`（例: `neutral/01` → `'neutral-01'`） |
+| Semantic の `/` | map の `group` / `name`（例: `text/base`） |
+| テキストスタイル先頭 `_` | 除去（例: `etc/_s` → `etc/s`） |
+
+## 3. MCP 実装時の手順
+
+1. `_variables.scss` と関連 mixin（`_font.scss`, `_effects.scss`）を確認し、**既存の使い方**を把握する
+2. figmaMCP で対象範囲のスタイル・バリアブル／ノード値を取得する（Figma 無し時は実測・既存慣習で代替）
+3. Variables / Text Styles 適用箇所は **同名キーと突合**して参照する（§4〜6）。**近い別キーへ丸めない**（§1）
+4. 値が Figma と異なる既存キーは画面実装で書き換えず、同期スキルへ（§1）。**Figma にあり Code に無い**キーのみ Figma 値で最小追記（確認待ちなし）。**§4「個別指定テキスト」は `$text-styles` へ追記しない**
+5. 未適用箇所は個別にデザイン通り実装する（§1）。基盤の一括更新・値変更が必要なら `@figma-tokens-setup` / `@figma-tokens-sync` を案内する
+
+## 4. テキストスタイル
+
+- 対象: `head/*`, `paragraph/*`, `etc/*` などの命名スタイル
+- 設定先: `$text-styles`（map）。必須: `weight`, `size`, `line`, `space`。**`font` は含めない**
+- **`line` の小数桁**: トークン書き込み時は第3位を四捨五入して第2位まで。正本 `@figma-tokens-setup` reference-json「テキストスタイル」（近い値への丸め禁止・§1 とは別）
+- 適用: `font()`（`$_key` / 値直指定 / ファミリー上書き）。**既存ページの書き方を優先**
+- **`$_min-size` / `$_max-size` / `$_use-sh` は原則付けない**（詳細: `project/css/scss.mdc`「値とmixin / function」）
+- **キーは PC/SP で切り替えない**（§1）。例: PC が `paragraph/l` なら SP も `paragraph/l` のまま。メディアクエリ内で別キーの `font($_key:)` を当てない
+
+### 個別指定テキスト（テキストスタイル未適用）
+
+- `$text-styles` へ追記しない
+- `font()` に `$_size` / `$_line` / `$_space` / `$_weight` を渡す（**`$_weight` は必須**。省略不可）。`$_min-size` 等は原則付けない
+- **サイズ・行間・文字間・太さは `font()` で完結**（直後に `letter-spacing` / `line-height` 等を重ねない。特別な上書きのみ例外）。引数の単位・換算（PIXELS / PERCENT）は `project/css/scss.mdc`「`font()` 直指定の引数」
+- **`$_family` は本文（`$base_font`）と同じなら省略可**。別ファミリーのときだけ `$_family` + `$_font-key` を渡す
+- `$_family` / `$_weight` を明示するときは `get-font-family()` / `get-font-weight()` を使う（数値直書きの weight も可）
+
+### テキスト上下トリミング（leading-trim）
+
+Figma でテキストの上下トリミングが有効なとき（Dev Mode 例: `leading-trim: both;` / `text-edge: cap;`）は、`text-box-*` を直書きせず **`@include text-trimming;`** を使う。
+
+```scss
+@include font($_key: 'head/l');
+@include text-trimming;
+```
+
+- mixin 定義: `<theme-root>/src/scss/foundation/mixins/util/_text-trimming.scss`
+- 出力: `text-box-trim: trim-both;` / `text-box-edge: cap alphabetic;`
+- トリミング未設定のテキストには付けない
+
+### テキストの折り返し
+
+MCP / Dev Mode が付ける `flex-shrink: 0`・`white-space: nowrap` は **テキスト要素へ転記しない**。正本: `project/css/scss.mdc`「テキストの折り返し」
+
+## 5. エフェクトスタイル
+
+- `$effects` / `_effects.scss` の `set-effect()`。寸法は原則 `s()`（`sh()` は指示時のみ）
+- テキストレイヤーの dropshadow → **`text-shadow`**（`set-effect('dropshadow', 'text-light')` 等）
+
+## 内側の線（Inside stroke）と padding
+
+`figma/inside-stroke.mdc` に従う（原則 `border`。`strokesIncludedInLayout: false`＝除外する、のときのみ `box-shadow: inset`）。
+
+## 6. バリアブル（カラー・フォント・Device）
+
+### カラー
+
+- **基本**: `$color-palette` → `$colors` → 実装は **`get-color()`**（実装から `get-color-palette()` 直参照禁止）
+- Primitive → `$color-palette`／Semantic → `$colors`（Alias は `_variables.scss` 内のみ `get-color-palette`）
+- Figma Semantic が整備されている場合はキー突合。**無い・薄い場合**は要素（文字 / 背景 / 線 / アイコン・装飾）から `text` / `background` / `border` / `icon-decoration` へ当てはめて `$colors` に定義してから使う（`ui` は画面実装では原則触らない）
+- **実装時は CSS の役割と group を一致**（線→`border` 等。同色でも `text` を border に流用しない。不足は同パレット Alias で該当 group へ最小追記）。**例外**: 当該プロパティに Semantic が明示適用されていればキー突合優先（詳細: `project/css/scss.mdc`「カラー」）
+- 不足色は汎用キーで最小追記（画面固有名は避ける）。手動追記時は Semantic の `name` とパレットキーを揃える（`background/brand` → `brand`。JSON 同期結果はそのまま）。Semantic あり・JSON 可なのに `$colors` 空なら先に `@figma-tokens-setup` / `@figma-tokens-sync`（§8）
+- 詳細・グループ表・禁止: `project/css/scss.mdc`「カラー」
+
+### フォント
+
+- `$font-weight-key` / `$font-configs` / `get-font-weight()` / `get-font-family()`
+- ウェイトキーは Figma バリアブル名（`normal` / `medium` / `strong` 等）。CSS 名 `bold` をキーにしない
+- **`$base_font` / `$base_font_key`**: 本文ファミリー用。**判定は `@figma-tokens-setup`（Font 投入時）に一度だけ**（主要本文スタイル `paragraph/*` 等のファミリー）。**画面実装のたびにベースを再判定しない**。実装は本文＝`$base_font`、別ファミリーだけ `font()` の `$_family` + `$_font-key` で上書き（`project/css/scss.mdc`）。**`font-family` 文字列の直書きで configs を迂回しない**。`$text-styles` に `font` は置かない（同一スタイルをファミリーだけ差し替えて使うため）
+- **スタイル工程ゲート（必須・未充足なら Step 5 に進まない）**:
+  1. 対象画面の Figma ファミリーを列挙する
+  2. 各ファミリーが `$font-configs` にあるか確認する。`$base_font` / `$base_font_key` は **未設定（`sans-serif` のみ等）なら** 本文ファミリーで一度セットする（既に案件値なら画面ごとに変えない）
+  3. **`$font-configs` が空**、または対象ファミリーが欠ける、または `$base_font` が未設定のままのとき → **スタイル数値の実装を止める**。先に configs / `$base_font`（と必要なら読み込み）を満たす
+- **読み込み・追記の分岐**（正本の読み込み手順は `project-env-setup/reference.md`「C-6」。方式選択の AskQuestion は同節）:
+
+| 状況 | 動き |
+|------|------|
+| `FONT_TAGS` または `$font-configs` の `files` に **当該ファミリーが既にある** | **AskQuestion なし**で `$font-configs` 最小追記可。`$base_font` 未設定時のみ本文ファミリーでセット（読み込み方式は既存を維持。`files` があるファミリーは `FONT_TAGS` を増やさない） |
+| 読み込みが無い（CDN も `files` も無し） | **interactive**: C-6 どおり調査 → AskQuestion → 配置。**unattended**: 推測で CDN／セルフホストを新規採用しない。Progress に不足ファミリーを残しスタイル工程は止める（または Request notes の明示のみ採用） |
+| 新規ファミリーを追加する | 上表と同じ。既存読み込みに載せるだけなら AskQuestion 不要。方式自体が未決なら AskQuestion（unattended は上の停止） |
+
+- サブセット化はスキルから実行しない（ユーザー手動）
+
+### Device・コンテナ・セクション
+
+- `space/section-space/*` → `$section-sizes`（実装は `ly_section __*`。**Variables を正**。任意の `SECTION(...)` は Variables 欠落時の保険。**非整備（役割不明）は画面全体から算出して最小追記** — `figma-rule.mdc`「セクション・コンテナ余白」）
+- `space/content-space/*` → `$content-space` → `ut_space __*`（用途は `project/css/scss.mdc`「コンテナ・セクション余白」。未適用のリスト間・padding・最小要素へ流用しない・§1）
+- `container/*` → `$container-sizes`（`ly_container __*`。**Variables を正**。任意の `CONTAINER(...)` は保険。非整備時の算出も同上）
+- **`padding-inline` / `max-width`**: 正本は `project/css/scss.mdc`「コンテナの `padding-inline` と `max-width`」。要点のみ — **`container/*-space` / `*-max` があるときは直値**（加減算しない。`99999` 等は `null`）。Variables 欠落時は列幅＋padding のフォールバック（非整備算出時も同）。コンテンツ列を `フレーム幅 − 外側余白` で無理に算出しない
+- **通常実装**: Variables 適用キーは Figma 値と同一。未適用の実測は個別実装か、必要ならデザイン値で別キー追記（近いキー／数値への丸めはしない・§1）。**セクション・コンテナの役割不明**は個別直書きせず `ly_*` ＋ variables 追記（`figma-rule.mdc`）
+- **片側・依頼明示の非整備**: 既存キーへの丸めは **`$section-sizes` のみ**（目安 50px 未満・§1）。`$content-space` / `$container-sizes` やその他余白は丸めない
+- **モディファイア（`__s` / `__m` / `__l` 等）も PC/SP で切り替えない**（§1）。同一要素は同じ `__*` を使い、キー内のブレイクポイント値に任せる
+
+## 7. 実装時チェック
+
+- 既存案件のカラー／`font()` 慣習に沿っているか
+- **通常実装でデザイン通りか**（近い別キー・近い数値への丸めをしていないか。非整備でもセクション余白以外を丸めていないか・§1）
+- **主要プロパティの数値突合**: 余白・字サイズ・行間・色・半径・幅を MCP／実測と突き合わせ、実装値が Figma と同一か（きれいな数への丸め・近いトークン寄せがないか）
+- Variables / Text Styles 適用箇所は **キーと値が Figma と突合**できているか。値ずれは同期スキルへ回したか（画面実装で既存キー値を書き換えていないか・§1）
+- 未適用箇所を無理に既存変数へ寄せず、個別実装または必要時のみデザイン値で追記したか
+- **ブレイクポイント間でトークンキーを切り替えていないか**（同一キー原則・§1）
+- `$container-sizes` が Variables（`container/*-space` / `*-max`）と **直値突合**できているか。Variables 欠落・非整備算出時は列＋padding フォールバックか（`scss.mdc`／`figma-rule.mdc`）
+- 命名テキストスタイル未適用を `$text-styles` に入れていないか
+- **`font()` のあと `letter-spacing` / `line-height` 等を重ねていないか**（直指定は引数で完結。特別上書きのみ例外 — `project/css/scss.mdc`）
+- **`$_space` が Figma の `letterSpacing.unit` と一致しているか**（PERCENT なのに見た目で `px` 付きにしていないか。正本: `project/css/scss.mdc`「`font()` 直指定の引数」）
+- **`get-color()` の group が CSS の役割と一致しているか**（線に `text/*` 流用などがないか。Semantic 明示適用時はキー突合。正本: `project/css/scss.mdc`「カラー」）
+- 対象ファミリーの `$font-configs` と `$base_font`、読み込み（`files` / `FONT_TAGS`）が揃っているか（**§6 ゲート未通過なら完了不可**）。**`$base_font` が `sans-serif` のみ／`$base_font_key: null` のまま完了しない**
+- 使用ファミリーが `$font-configs` に無いとき、直書き `font-family` で迂回していないか（**無ければ追記**）
+- Figma 上下トリミング有効時に `@include text-trimming` があるか（§4）
+- テキストに `flex-shrink: 0` / `white-space: nowrap` を付けていないか（§4・`project/css/scss.mdc`「テキストの折り返し」）
+- `s()` 漏れ・不要な `sh()` がないか
+- Figma 値を SCSS コメントに併記していないか（`frontend-base/css.mdc`「コメント付与の考え方」）
+- hover 時の `transition`（`project/css/scss.mdc`）
+- 閉じタグコメント（`frontend-base/html.mdc`）
+- コンポーネント命名・`section_` / `ut_space`（`figma-rule.mdc`）
+- 部品の位置制御・inside-stroke・`aspect-ratio`（装飾は一方の寸法＋比率。画像は枠固定する箇所だけ。正本: `project/css/scss.mdc`「aspect-ratio」）
+- **レスポンシブ**（`figma/responsive.mdc`）: 原則対応済みか。両デザイン時は差分先行のスタイル工程（ファースト側→**もう一方フレーム再取得**→項目突合して上書き）か。**両デザイン時はもう一方も PC と同水準でデザイン通りか**（片側用の基本対応・感覚スケールで済ませていないか。**Figma 同値なのに SP だけ小さくしていないか**／トークン SP 枠の縮小を放置していないか）。片側のみ時はもう一方の基本対応があるか（**既存トークン値は触っていないか**／**キー切替をしていないか**）。**PC のみ時は長いリード・説明文の SP 左寄せ**があるか。HTML 要の差分はテンプレに戻したか
+
+## 8. 同期
+
+| 用途 | スキル |
+|------|--------|
+| 基盤の初回／全面入れ替え（**リセット必須** → JSON 同期 / 何もしない） | `@figma-tokens-setup` |
+| 継続的な差分同期（JSON 鮮度ゲート → Code↔JSON の diff → pull / push） | `@figma-tokens-sync` |
+
+- JSON の配置先は **`.cursor/figma-tokens/`**（`figma-tokens-setup/reference-json.md` / `figma-tokens-sync/reference.md`）
+- **差分の比較面は最新 Export の JSON**（ライブ MCP 全走査を主差分にしない）。Figma 変更後は同期前に必ず Export
+- push（Code → Figma）は MCP。完了後は再 Export で JSON を追従
